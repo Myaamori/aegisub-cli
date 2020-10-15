@@ -135,9 +135,9 @@ bool Project::DoLoadSubtitles(agi::fs::path const& path, std::string encoding, P
 	return true;
 }
 
-void Project::LoadSubtitles(agi::fs::path path, std::string encoding) {
+bool Project::LoadSubtitles(agi::fs::path path, std::string encoding) {
 	ProjectProperties properties;
-	DoLoadSubtitles(path, encoding, properties);
+	return DoLoadSubtitles(path, encoding, properties);
 }
 
 void Project::CloseSubtitles() {
@@ -188,9 +188,9 @@ bool Project::DoLoadVideo(agi::fs::path const& path) {
 	return true;
 }
 
-void Project::LoadVideo(agi::fs::path path) {
-	if (path.empty()) return;
-	if (!DoLoadVideo(path)) return;
+bool Project::LoadVideo(agi::fs::path path) {
+	if (path.empty()) return false;
+	if (!DoLoadVideo(path)) return false;
 
 	double dar = video_provider->GetDAR();
 	if (dar > 0)
@@ -198,6 +198,7 @@ void Project::LoadVideo(agi::fs::path path) {
 	else
 		context->videoController->SetAspectRatio(AspectRatio::Default);
 	context->videoController->JumpToFrame(0);
+	return true;
 }
 
 void Project::CloseVideo() {
@@ -216,9 +217,10 @@ void Project::DoLoadTimecodes(agi::fs::path const& path) {
 	AnnounceTimecodesModified(timecodes);
 }
 
-void Project::LoadTimecodes(agi::fs::path path) {
+bool Project::LoadTimecodes(agi::fs::path path) {
 	try {
 		DoLoadTimecodes(path);
+		return true;
 	}
 	catch (agi::fs::FileSystemError const& e) {
 		ShowError(e.GetMessage());
@@ -228,6 +230,7 @@ void Project::LoadTimecodes(agi::fs::path path) {
 		ShowError("Failed to parse timecodes file: " + e.GetMessage());
 		config::mru->Remove("Timecodes", path);
 	}
+	return false;
 }
 
 void Project::CloseTimecodes() {
@@ -242,9 +245,10 @@ void Project::DoLoadKeyframes(agi::fs::path const& path) {
 	AnnounceKeyframesModified(keyframes);
 }
 
-void Project::LoadKeyframes(agi::fs::path path) {
+bool Project::LoadKeyframes(agi::fs::path path) {
 	try {
 		DoLoadKeyframes(path);
+		return true;
 	}
 	catch (agi::fs::FileSystemError const& e) {
 		ShowError(e.GetMessage());
@@ -258,6 +262,7 @@ void Project::LoadKeyframes(agi::fs::path path) {
 		ShowError("Keyframes file in unknown format: " + e.GetMessage());
 		config::mru->Remove("Keyframes", path);
 	}
+	return false;
 }
 
 void Project::CloseKeyframes() {

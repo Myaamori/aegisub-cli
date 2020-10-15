@@ -58,6 +58,7 @@
 #include <libaegisub/make_unique.h>
 #include <libaegisub/option.h>
 #include <libaegisub/path.h>
+#include <libaegisub/split.h>
 #include <libaegisub/util.h>
 
 #ifndef WIN32
@@ -80,12 +81,79 @@ namespace config {
 	Automation4::AutoloadScriptManager *global_scripts;
 }
 
-static const char *LastStartupState = nullptr;
+std::set<int> parse_range(const std::string& s) {
+	std::set<int> lines;
+	for (auto tok : agi::Split(s, ',')) {
+		auto item = agi::str(tok);
+		int i;
+
+		if (boost::conversion::try_lexical_convert(item, i)) {
+			lines.insert(i);
+		} else {
+			auto sep = item.find('-');
+			if (sep == std::string::npos) {
+				throw agi::InvalidInputException("Invalid number or range: " + item);
+			}
+
+			if (!boost::conversion::try_lexical_convert(item.substr(0, sep), i)) {
+				throw agi::InvalidInputException("Invalid start number in range: " + item);
+			}
+
+			int j;
+			if (!boost::conversion::try_lexical_convert(item.substr(sep + 1), j)) {
+				throw agi::InvalidInputException("Invalid end number in range: " + item);
+			}
+
+			for (int k = i; k <= j; k++) {
+				lines.insert(k);
+			}
+		}
+	}
+	return lines;
+}
 
 int main(int argc, char **argv) {
+	boost::program_options::options_description cmdline("Options");
+	boost::program_options::options_description flags("Options");
+	boost::program_options::positional_options_description posdesc;
+
+	cmdline.add_options()
+		("in-file", boost::program_options::value<std::string>(), "input file")
+		("out-file", boost::program_options::value<std::string>(), "output file")
+		("macro", boost::program_options::value<std::string>(), "macro to run")
+	;
+
+	flags.add_options()
+		("help", "produce help message")
+		("video", boost::program_options::value<std::string>(), "video to load")
+		("timecodes", boost::program_options::value<std::string>(), "timecodes to load")
+		("keyframes", boost::program_options::value<std::string>(), "keyframes to load")
+		("active-line", boost::program_options::value<int>()->default_value(-1), "the active line")
+		("selected-lines", boost::program_options::value<std::string>()->default_value(""), "the selected lines")
+	;
+
+	cmdline.add(flags);
+	posdesc.add("in-file", 1);
+	posdesc.add("out-file", 1);
+	posdesc.add("macro", 1);
+	boost::program_options::variables_map vm;
+	boost::program_options::store(
+		boost::program_options::command_line_parser(argc, argv).
+		options(cmdline).positional(posdesc).run(), vm);
+	boost::program_options::notify(vm);
+
+	if (vm.count("help") || !vm.count("macro")) {
+		if (!vm.count("macro")) {
+			std::cout << "Too few arguments." << std::endl;
+		}
+		std::cout << argv[0] << " [options] <in-file> <out-file> <macro>" << std::endl;
+		std::cout << flags << std::endl;
+		return 1;
+	}
+
+
 #ifndef WIN32
-	wxApp *app = new wxApp();
-	wxApp::SetInstance(app);
+	wxApp::SetInstance(new wxApp());
 	wxEntryStart(argc, argv);
 #endif
 	
@@ -215,26 +283,71 @@ int main(int argc, char **argv) {
 		// Load Automation scripts
 		StartupLog("Load global Automation scripts");
 		config::global_scripts = new Automation4::AutoloadScriptManager(OPT_GET("Path/Automation/Autoload")->GetString());
-		
+
 		auto context = agi::make_unique<agi::Context>();
-		
-		StartupLog("Parse command line");
-		
-		// Get parameter subs
-		/*
-		if (argc >= 3) {
-			context->subsController->Load(argv[1], "UTF-8");
-			auto& line = context->ass->Events.front();
-			context->selectionController->SetActiveLine(&line);
-			context->selectionController->SetSelectedSet(Selection { &line });
-			
-			for (int i = 3; i < argc; i++) {
-				StartupLog("Calling: ") << argv[i];
-				cmd::call(argv[i], context.get());
+
+		StartupLog("Loading subtitles...");
+		if (!context->project->LoadSubtitles(vm["in-file"].as<std::string>())) {
+			return 2;
+		}
+
+		if (vm.count("video")) {
+			StartupLog("Loading video...");
+			if (!context->project->LoadVideo(vm["video"].as<std::string>())) {
+				return 2;
 			}
-			
-			context->subsController->Save(argv[2]);
-		}*/
+		}
+
+		if (vm.count("timecodes")) {
+			StartupLog("Loading timecodes...");
+			if (!context->project->LoadTimecodes(vm["timecodes"].as<std::string>())) {
+				return 2;
+			}
+		}
+
+		if (vm.count("keyframes")) {
+			StartupLog("Loading keyframes...");
+			if (!context->project->LoadKeyframes(vm["keyframes"].as<std::string>())) {
+				return 2;
+			}
+		}
+
+		auto active_index = vm["active-line"].as<int>();
+		AssDialogue* active_line = nullptr;
+
+		auto selected_indices = parse_range(vm["selected-lines"].as<std::string>());
+		Selection selected_lines;
+
+		int i = 0;
+		for (auto& line : context->ass->Events) {
+			if (i == active_index) {
+				active_line = &line;
+			}
+
+			if (selected_indices.empty() || selected_indices.count(i)) {
+				selected_lines.insert(&line);
+				if (active_line == nullptr) {
+					// assign first line in selection as a fallback
+					active_line = &line;
+				}
+			}
+			i++;
+		}
+
+		if (active_line == nullptr) {
+			// selection was empty
+			active_line = &context->ass->Events.front();
+			selected_lines.insert(active_line);
+		}
+
+		context->selectionController->SetSelectionAndActive(
+			std::move(selected_lines), active_line);
+
+		auto macro = vm["macro"].as<std::string>();
+		StartupLog("Calling: ") << macro;
+		cmd::call(macro, context.get());
+
+		context->subsController->Save(vm["out-file"].as<std::string>());
 	}
 	catch (agi::Exception const& e) {
 		StartupError("Fatal error while initializing: ") << e.GetMessage();
@@ -261,7 +374,6 @@ int main(int argc, char **argv) {
 	
 #ifndef WIN32
 	wxEntryCleanup();
-	delete app;
 #endif
 	return 0;
 }
