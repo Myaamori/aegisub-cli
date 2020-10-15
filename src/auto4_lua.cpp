@@ -631,7 +631,7 @@ namespace {
 	, cmd_type(cmd::COMMAND_NORMAL)
 	{
 		lua_getfield(L, LUA_REGISTRYINDEX, "filename");
-		cmd_name = agi::format("automation/lua/%s/%s", check_string(L, -1), check_string(L, 1));
+		cmd_name = agi::format("%s", check_string(L, 1));
 
 		if (!lua_isfunction(L, 3))
 			error(L, "The macro processing function must be a function");
