@@ -33,12 +33,10 @@
 ///
 
 #include "auto4_lua.h"
+#include "stdio.h"
 
-#include "compat.h"
-
+#include <libaegisub/log.h>
 #include <libaegisub/lua/utils.h>
-
-#include <wx/filedlg.h>
 
 using namespace agi::lua;
 
@@ -56,18 +54,13 @@ namespace {
 		lua_pushnil(L);
 		lua_setfield(L, idx, name);
 	}
-
-	wxString check_wxstring(lua_State *L, int idx)
-	{
-		return to_wx(check_string(L, idx));
-	}
 }
 
 namespace Automation4 {
-	LuaProgressSink::LuaProgressSink(lua_State *L, ProgressSink *ps, bool allow_config_dialog)
+	LuaProgressSink::LuaProgressSink(lua_State *L, agi::ProgressSink *ps, bool allow_config_dialog)
 	: L(L)
 	{
-		auto ud = (ProgressSink**)lua_newuserdata(L, sizeof(ProgressSink*));
+		auto ud = (agi::ProgressSink**)lua_newuserdata(L, sizeof(agi::ProgressSink*));
 		*ud = ps;
 
 		// register progress reporting stuff
@@ -115,10 +108,10 @@ namespace Automation4 {
 		set_field_to_nil(L, LUA_REGISTRYINDEX, "progress_sink");
 	}
 
-	ProgressSink* LuaProgressSink::GetObjPointer(lua_State *L, int idx)
+	agi::ProgressSink* LuaProgressSink::GetObjPointer(lua_State *L, int idx)
 	{
 		assert(lua_type(L, idx) == LUA_TUSERDATA);
-		return *((ProgressSink**)lua_touserdata(L, idx));
+		return *((agi::ProgressSink**)lua_touserdata(L, idx));
 	}
 
 	int LuaProgressSink::LuaSetProgress(lua_State *L)
@@ -147,11 +140,12 @@ namespace Automation4 {
 
 	int LuaProgressSink::LuaDebugOut(lua_State *L)
 	{
-		ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		agi::ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 
 		// Check trace level
 		if (lua_type(L, 1) == LUA_TNUMBER) {
-			if (lua_tointeger(L, 1) > ps->GetTraceLevel())
+			// TODO: trace level
+			if (lua_tointeger(L, 1) > 3)
 				return 0;
 			// remove trace level
 			lua_remove(L, 1);
@@ -186,10 +180,10 @@ namespace Automation4 {
 
 	int LuaProgressSink::LuaDisplayDialog(lua_State *L)
 	{
-		ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		agi::ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 
 		LuaDialog dlg(L, true); // magically creates the config dialog structure etc
-		ps->ShowDialog(&dlg);
+		//ps->ShowDialog(&dlg);
 
 		// more magic: puts two values on stack: button pushed and table with control results
 		return dlg.LuaReadBack(L);
@@ -197,30 +191,19 @@ namespace Automation4 {
 
 	int LuaProgressSink::LuaDisplayOpenDialog(lua_State *L)
 	{
-		ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
-		wxString message(check_wxstring(L, 1));
-		wxString dir(check_wxstring(L, 2));
-		wxString file(check_wxstring(L, 3));
-		wxString wildcard(check_wxstring(L, 4));
+		agi::ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		std::string message(check_string(L, 1));
+		std::string dir(check_string(L, 2));
+		std::string file(check_string(L, 3));
+		std::string wildcard(check_string(L, 4));
 		bool multiple = !!lua_toboolean(L, 5);
 		bool must_exist = lua_toboolean(L, 6) || lua_isnil(L, 6);
 
-		int flags = wxFD_OPEN;
-		if (multiple)
-			flags |= wxFD_MULTIPLE;
-		if (must_exist)
-			flags |= wxFD_FILE_MUST_EXIST;
+		LOG_I("agi/auto4_lua_progresssink") << "Open file: " << message << "|" << dir << "|" << file << "|" << wildcard;
+		lua_pushnil(L);
+		return 1;
 
-		wxFileDialog diag(nullptr, message, dir, file, wildcard, flags);
-		if (ps->ShowDialog(&diag) == wxID_CANCEL) {
-			lua_pushnil(L);
-			return 1;
-		}
-
-		if (multiple) {
-			wxArrayString files;
-			diag.GetPaths(files);
-
+		/*if (multiple) {
 			lua_createtable(L, files.size(), 0);
 			for (size_t i = 0; i < files.size(); ++i) {
 				lua_pushstring(L, files[i].utf8_str());
@@ -231,29 +214,24 @@ namespace Automation4 {
 		}
 
 		lua_pushstring(L, diag.GetPath().utf8_str());
-		return 1;
+		return 1;*/
 	}
 
 	int LuaProgressSink::LuaDisplaySaveDialog(lua_State *L)
 	{
-		ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
-		wxString message(check_wxstring(L, 1));
-		wxString dir(check_wxstring(L, 2));
-		wxString file(check_wxstring(L, 3));
-		wxString wildcard(check_wxstring(L, 4));
+		agi::ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		std::string message(check_string(L, 1));
+		std::string dir(check_string(L, 2));
+		std::string file(check_string(L, 3));
+		std::string wildcard(check_string(L, 4));
 		bool prompt_overwrite = !lua_toboolean(L, 5);
+		
+		LOG_I("agi/auto4_lua_progresssink") << "Save file: " << message << "|" << dir << "|" << file << "|" << wildcard;
 
-		int flags = wxFD_SAVE;
-		if (prompt_overwrite)
-			flags |= wxFD_OVERWRITE_PROMPT;
-
-		wxFileDialog diag(ps->GetParentWindow(), message, dir, file, wildcard, flags);
-		if (ps->ShowDialog(&diag) == wxID_CANCEL) {
-			lua_pushnil(L);
-			return 1;
-		}
-
-		lua_pushstring(L, diag.GetPath().utf8_str());
+		lua_pushnil(L);
 		return 1;
+
+		/*lua_pushstring(L, diag.GetPath().utf8_str());
+		return 1;*/
 	}
 }

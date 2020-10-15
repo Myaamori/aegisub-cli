@@ -18,41 +18,21 @@
 ///
 
 #include <chrono>
-#include <wx/dialog.h>
-#include <wx/timer.h>
 
 #include <libaegisub/background_runner.h>
 
 class DialogProgressSink;
-class wxButton;
-class wxGauge;
-class wxStaticText;
-class wxTextCtrl;
 
 /// @class DialogProgress
 /// @brief Progress-bar dialog box for displaying during long operations
-class DialogProgress final : public wxDialog, public agi::BackgroundRunner {
-	friend class DialogProgressSink;
+class DialogProgress final : public agi::BackgroundRunner {
 	DialogProgressSink *ps;
 
-	wxStaticText *title;
-	wxStaticText *text;
-	wxGauge *gauge;
-	wxButton *cancel_button;
-	wxTextCtrl *log_output;
-
-	wxTimer pulse_timer;
-
-	wxString pending_log;
 	int progress_anim_start_value = 0;
 	int progress_current = 0;
 	int progress_target = 0;
 	std::chrono::steady_clock::time_point progress_anim_start_time;
 	int progress_anim_duration = 0;
-
-	void OnShow(wxShowEvent&);
-	void OnCancel(wxCommandEvent &);
-	void OnIdle(wxIdleEvent&);
 
 	void SetProgress(int target);
 
@@ -61,7 +41,7 @@ public:
 	/// @param parent Parent window of the dialog
 	/// @param title Initial title of the dialog
 	/// @param message Initial message of the dialog
-	DialogProgress(wxWindow *parent, wxString const& title="", wxString const& message="");
+	DialogProgress(std::string const& title="", std::string const& message="");
 
 	/// BackgroundWorker implementation
 	void Run(std::function<void(agi::ProgressSink *)> task) override;

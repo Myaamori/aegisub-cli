@@ -31,11 +31,8 @@
 
 #include <deque>
 #include <vector>
-#include <wx/string.h>
 
 class AssEntry;
-class wxControl;
-class wxWindow;
 struct lua_State;
 
 namespace Automation4 {
@@ -43,7 +40,7 @@ namespace Automation4 {
 	/// @brief Object wrapping an AssFile object for modification through Lua
 	class LuaAssFile {
 		struct PendingCommit {
-			wxString mesage;
+			std::string mesage;
 			int modification_type;
 			std::vector<AssEntry*> lines;
 		};
@@ -122,7 +119,7 @@ namespace Automation4 {
 		/// @param set_undo If there's any uncommitted changes to the file,
 		///                 they will be automatically committed with this
 		///                 description
-		std::vector<AssEntry *> ProcessingComplete(wxString const& undo_description = wxString());
+		std::vector<AssEntry *> ProcessingComplete(std::string const& undo_description = "");
 
 		/// End processing without applying any changes made
 		void Cancel();
@@ -148,10 +145,10 @@ namespace Automation4 {
 		static int LuaDisplaySaveDialog(lua_State *L);
 
 	public:
-		LuaProgressSink(lua_State *L, ProgressSink *ps, bool allow_config_dialog = true);
+		LuaProgressSink(lua_State *L, agi::ProgressSink *ps, bool allow_config_dialog = true);
 		~LuaProgressSink();
 
-		static ProgressSink* GetObjPointer(lua_State *L, int idx);
+		static agi::ProgressSink* GetObjPointer(lua_State *L, int idx);
 	};
 
 	/// Base class for controls in dialogs
@@ -164,12 +161,6 @@ namespace Automation4 {
 		std::string hint;
 
 		int x, y, width, height;
-
-		/// Create the associated wxControl
-		virtual wxControl *Create(wxWindow *parent) = 0;
-
-		/// Get the default flags to use when inserting this control into a sizer
-		virtual int GetSizerFlags() const { return wxEXPAND; }
 
 		/// Push the current value of the control onto the lua stack. Must not
 		/// touch the GUI as this may be called on a background thread.
@@ -204,8 +195,6 @@ namespace Automation4 {
 		/// Id of the button pushed (once a button has been pushed)
 		int button_pushed = -1;
 
-		wxWindow *window = nullptr;
-
 	public:
 		LuaDialog(lua_State *L, bool include_buttons);
 
@@ -214,7 +203,6 @@ namespace Automation4 {
 		int LuaReadBack(lua_State *L);
 
 		// ScriptDialog implementation
-		wxWindow* CreateWindow(wxWindow *parent) override;
 		std::string Serialise() override;
 		void Unserialise(const std::string &serialised) override;
 	};

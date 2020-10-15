@@ -34,6 +34,7 @@
 
 #ifdef WITH_FFMS2
 #include <map>
+#include <string>
 
 #include <ffms.h>
 
@@ -62,10 +63,9 @@ public:
 	void CleanCache();
 
 	FFMS_Index *DoIndexing(FFMS_Indexer *Indexer, agi::fs::path const& Cachename,
-		                   TrackSelection Track,
-		                   FFMS_IndexErrorHandling IndexEH);
+						   TrackSelection Track,
+						   FFMS_IndexErrorHandling IndexEH);
 	std::map<int, std::string> GetTracksOfType(FFMS_Indexer *Indexer, FFMS_TrackType Type);
-	TrackSelection AskForTrackSelection(const std::map<int, std::string>& TrackList, FFMS_TrackType Type);
 	agi::fs::path GetCacheFilename(agi::fs::path const& filename);
 	void SetLogLevel();
 	FFMS_IndexErrorHandling GetErrorHandlingMode();

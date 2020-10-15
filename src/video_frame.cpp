@@ -21,7 +21,6 @@
 #else
 #include <boost/gil.hpp>
 #endif
-#include <wx/image.h>
 
 namespace {
 	// We actually have bgr_, not bgra, so we need a custom converter which ignores the alpha channel
@@ -35,16 +34,4 @@ namespace {
 				get_color(src, blue_t()));
 		}
 	};
-}
-
-wxImage GetImage(VideoFrame const& frame) {
-	using namespace boost::gil;
-
-	wxImage img(frame.width, frame.height);
-	auto src = interleaved_view(frame.width, frame.height, (bgra8_pixel_t*)frame.data.data(), frame.pitch);
-	auto dst = interleaved_view(frame.width, frame.height, (rgb8_pixel_t*)img.GetData(), 3 * frame.width);
-	if (frame.flipped)
-		src = flipped_up_down_view(src);
-	copy_and_convert_pixels(src, dst, color_converter());
-	return img;
 }

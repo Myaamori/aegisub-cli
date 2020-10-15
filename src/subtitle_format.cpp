@@ -36,18 +36,7 @@
 
 #include "ass_dialogue.h"
 #include "ass_file.h"
-#include "compat.h"
-#include "format.h"
 #include "subtitle_format_ass.h"
-#include "subtitle_format_ebu3264.h"
-#include "subtitle_format_encore.h"
-#include "subtitle_format_microdvd.h"
-#include "subtitle_format_mkv.h"
-#include "subtitle_format_srt.h"
-#include "subtitle_format_ssa.h"
-#include "subtitle_format_transtation.h"
-#include "subtitle_format_ttxt.h"
-#include "subtitle_format_txt.h"
 
 #include <libaegisub/fs.h>
 #include <libaegisub/make_unique.h>
@@ -56,7 +45,6 @@
 #include <algorithm>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <wx/choicdlg.h>
 
 namespace {
 	std::vector<std::unique_ptr<SubtitleFormat>> formats;
@@ -90,68 +78,6 @@ bool SubtitleFormat::CanSave(const AssFile *subs) const {
 	}
 
 	return true;
-}
-
-agi::vfr::Framerate SubtitleFormat::AskForFPS(bool allow_vfr, bool show_smpte, agi::vfr::Framerate const& fps) {
-	wxArrayString choices;
-
-	bool vidLoaded = false;
-	if (fps.IsLoaded()) {
-		vidLoaded = true;
-		if (!fps.IsVFR())
-			choices.Add(fmt_tl("From video (%g)", fps.FPS()));
-		else if (allow_vfr)
-			choices.Add(_("From video (VFR)"));
-		else
-			vidLoaded = false;
-	}
-
-	// Standard FPS values
-	choices.Add(_("15.000 FPS"));
-	choices.Add(_("23.976 FPS (Decimated NTSC)"));
-	choices.Add(_("24.000 FPS (FILM)"));
-	choices.Add(_("25.000 FPS (PAL)"));
-	choices.Add(_("29.970 FPS (NTSC)"));
-	if (show_smpte)
-		choices.Add(_("29.970 FPS (NTSC with SMPTE dropframe)"));
-	choices.Add(_("30.000 FPS"));
-	choices.Add(_("50.000 FPS (PAL x2)"));
-	choices.Add(_("59.940 FPS (NTSC x2)"));
-	choices.Add(_("60.000 FPS"));
-	choices.Add(_("119.880 FPS (NTSC x4)"));
-	choices.Add(_("120.000 FPS"));
-
-	bool was_busy = wxIsBusy();
-	if (was_busy) wxEndBusyCursor();
-	int choice = wxGetSingleChoiceIndex(_("Please choose the appropriate FPS for the subtitles:"), _("FPS"), choices);
-	if (was_busy) wxBeginBusyCursor();
-
-	using agi::vfr::Framerate;
-	if (choice == -1)
-		return Framerate();
-
-	// Get FPS from choice
-	if (vidLoaded)
-		--choice;
-	if (!show_smpte && choice > 4)
-		--choice;
-
-	switch (choice) {
-		case -1: return fps;                     break;
-		case 0:  return Framerate(15, 1);        break;
-		case 1:  return Framerate(24000, 1001);  break;
-		case 2:  return Framerate(24, 1);        break;
-		case 3:  return Framerate(25, 1);        break;
-		case 4:  return Framerate(30000, 1001);  break;
-		case 5:  return Framerate(30000, 1001, true); break;
-		case 6:  return Framerate(30, 1);        break;
-		case 7:  return Framerate(50, 1);        break;
-		case 8:  return Framerate(60000, 1001);  break;
-		case 9:  return Framerate(60, 1);        break;
-		case 10: return Framerate(120000, 1001); break;
-		case 11: return Framerate(120, 1);       break;
-	}
-	throw agi::InternalError("Out of bounds result from wxGetSingleChoiceIndex?");
 }
 
 void SubtitleFormat::StripTags(AssFile &file) {
@@ -263,15 +189,6 @@ void SubtitleFormat::MergeIdentical(AssFile &file) {
 void SubtitleFormat::LoadFormats() {
 	if (formats.empty()) {
 		formats.emplace_back(agi::make_unique<AssSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<Ebu3264SubtitleFormat>());
-		formats.emplace_back(agi::make_unique<EncoreSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<MKVSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<MicroDVDSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<SRTSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<SsaSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<TTXTSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<TXTSubtitleFormat>());
-		formats.emplace_back(agi::make_unique<TranStationSubtitleFormat>());
 	}
 }
 
@@ -312,5 +229,5 @@ std::string SubtitleFormat::GetWildcards(int mode) {
 		final += "|" + format->GetName() + " (" + boost::join(cur, ",") + ")|" + boost::join(cur, ";");
 	}
 
-	return from_wx(_("All Supported Formats")) + " (" + boost::join(all, ",") + ")|" + boost::join(all, ";") + final;
+	return "All Supported Formats (" + boost::join(all, ",") + ")|" + boost::join(all, ";") + final;
 }

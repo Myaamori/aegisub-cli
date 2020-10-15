@@ -39,7 +39,6 @@
 #include "ass_file.h"
 #include "ass_karaoke.h"
 #include "ass_style.h"
-#include "compat.h"
 
 #include <libaegisub/exception.h>
 #include <libaegisub/log.h>
@@ -677,7 +676,7 @@ namespace Automation4 {
 			PendingCommit& back = pending_commits.back();
 
 			back.modification_type = modification_type;
-			back.mesage = to_wx(check_string(L, 1));
+			back.mesage = check_string(L, 1);
 			back.lines = lines;
 			modification_type = 0;
 		}
@@ -693,7 +692,7 @@ namespace Automation4 {
 		return laf;
 	}
 
-	std::vector<AssEntry *> LuaAssFile::ProcessingComplete(wxString const& undo_description)
+	std::vector<AssEntry *> LuaAssFile::ProcessingComplete(std::string const& undo_description)
 	{
 		auto apply_lines = [&](std::vector<AssEntry *> const& lines) {
 			if (script_info_copied)
@@ -714,14 +713,14 @@ namespace Automation4 {
 		// Apply any pending commits
 		for (auto const& pc : pending_commits) {
 			apply_lines(pc.lines);
-			ass->Commit(pc.mesage, pc.modification_type);
+			ass->Commit(/*pc.mesage, */pc.modification_type);
 		}
 
 		// Commit any changes after the last undo point was set
 		if (modification_type)
 			apply_lines(lines);
 		if (modification_type && can_set_undo && !undo_description.empty())
-			ass->Commit(undo_description, modification_type);
+			ass->Commit(/*undo_description, */modification_type);
 
 		lines_to_delete.clear();
 

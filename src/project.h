@@ -14,6 +14,9 @@
 //
 // Aegisub Project http://www.aegisub.org/
 
+#ifndef PROJECT_H_INCLUDED
+#define PROJECT_H_INCLUDED
+
 #include <libaegisub/fs_fwd.h>
 #include <libaegisub/signal.h>
 #include <libaegisub/vfr.h>
@@ -24,13 +27,10 @@
 
 class AsyncVideoProvider;
 class DialogProgress;
-class wxString;
-namespace agi { class AudioProvider; }
 namespace agi { struct Context; }
 struct ProjectProperties;
 
 class Project {
-	std::unique_ptr<agi::AudioProvider> audio_provider;
 	std::unique_ptr<AsyncVideoProvider> video_provider;
 	agi::vfr::Framerate timecodes;
 	std::vector<int> keyframes;
@@ -40,7 +40,6 @@ class Project {
 	agi::fs::path timecodes_file;
 	agi::fs::path keyframes_file;
 
-	agi::signal::Signal<agi::AudioProvider *> AnnounceAudioProviderModified;
 	agi::signal::Signal<AsyncVideoProvider *> AnnounceVideoProviderModified;
 	agi::signal::Signal<agi::vfr::Framerate const&> AnnounceTimecodesModified;
 	agi::signal::Signal<std::vector<int> const&> AnnounceKeyframesModified;
@@ -49,16 +48,13 @@ class Project {
 	DialogProgress *progress = nullptr;
 	agi::Context *context = nullptr;
 
-	void ShowError(wxString const& message);
 	void ShowError(std::string const& message);
 
 	bool DoLoadSubtitles(agi::fs::path const& path, std::string encoding, ProjectProperties &properties);
-	void DoLoadAudio(agi::fs::path const& path, bool quiet);
 	bool DoLoadVideo(agi::fs::path const& path);
 	void DoLoadTimecodes(agi::fs::path const& path);
 	void DoLoadKeyframes(agi::fs::path const& path);
 
-	void LoadUnloadFiles(ProjectProperties properties);
 	void UpdateRelativePaths();
 	void ReloadAudio();
 	void ReloadVideo();
@@ -69,14 +65,9 @@ public:
 	Project(agi::Context *context);
 	~Project();
 
-	void LoadSubtitles(agi::fs::path path, std::string encoding="", bool load_linked=true);
+	void LoadSubtitles(agi::fs::path path, std::string encoding="");
 	void CloseSubtitles();
 	bool CanLoadSubtitlesFromVideo() const { return video_has_subtitles; }
-
-	void LoadAudio(agi::fs::path path);
-	void CloseAudio();
-	agi::AudioProvider *AudioProvider() const { return audio_provider.get(); }
-	agi::fs::path const& AudioName() const { return audio_file; }
 
 	void LoadVideo(agi::fs::path path);
 	void CloseVideo();
@@ -95,8 +86,9 @@ public:
 
 	void LoadList(std::vector<agi::fs::path> const& files);
 
-	DEFINE_SIGNAL_ADDERS(AnnounceAudioProviderModified, AddAudioProviderListener)
 	DEFINE_SIGNAL_ADDERS(AnnounceVideoProviderModified, AddVideoProviderListener)
 	DEFINE_SIGNAL_ADDERS(AnnounceTimecodesModified, AddTimecodesListener)
 	DEFINE_SIGNAL_ADDERS(AnnounceKeyframesModified, AddKeyframesListener)
 };
+
+#endif // PROJECT_H_INCLUDED

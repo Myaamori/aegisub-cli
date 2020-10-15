@@ -62,11 +62,6 @@ public:
 	/// Merge sequential identical lines
 	static void MergeIdentical(AssFile &file);
 
-	/// Prompt the user for a frame rate to use
-	/// @param allow_vfr Include video frame rate as an option even if it's vfr
-	/// @param show_smpte Show SMPTE drop frame option
-	static agi::vfr::Framerate AskForFPS(bool allow_vfr, bool show_smpte, agi::vfr::Framerate const& fps);
-
 	/// Constructor
 	/// @param Subtitle format name
 	SubtitleFormat(std::string name);

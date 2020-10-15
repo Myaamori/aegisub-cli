@@ -15,16 +15,6 @@
 #include <cstdlib>
 #include <utility>
 
-#include "bitmap.h"
 #include "default_config.h"
-
-class wxBitmap;
-class wxIcon;
-
-wxBitmap libresrc_getimage(const unsigned char *image, size_t size, int dir=0);
-wxIcon libresrc_geticon(const unsigned char *image, size_t size);
-#define GETIMAGE(a) libresrc_getimage(a, sizeof(a))
-#define GETIMAGEDIR(a, d) libresrc_getimage(a, sizeof(a), d)
-#define GETICON(a) libresrc_geticon(a, sizeof(a))
 
 #define GET_DEFAULT_CONFIG(a) std::make_pair(reinterpret_cast<const char *>(a), sizeof(a))

@@ -41,6 +41,7 @@
 #include "video_frame.h"
 
 #include <libaegisub/fs.h>
+#include <libaegisub/log.h>
 #include <libaegisub/make_unique.h>
 
 namespace {
@@ -166,10 +167,7 @@ void FFmpegSourceVideoProvider::LoadVideo(agi::fs::path const& filename, std::st
 
 	int TrackNumber = -1;
 	if (TrackList.size() > 1) {
-		auto Selection = AskForTrackSelection(TrackList, FFMS_TYPE_VIDEO);
-		if (Selection == TrackSelection::None)
-			throw agi::UserCancelException("video loading cancelled by user");
-		TrackNumber = static_cast<int>(Selection);
+		LOG_W("agi/video_provider_ffmpegsource") << "Multiple video tracks in " << filename << "; defaulting to first track.";
 	}
 
 	// generate a name for the cache file

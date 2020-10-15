@@ -33,8 +33,6 @@
 #include <chrono>
 #include <set>
 
-#include <wx/timer.h>
-
 class AssDialogue;
 class AsyncVideoProvider;
 struct SubtitlesProviderErrorEvent;
@@ -54,7 +52,7 @@ enum class AspectRatio {
 };
 
 /// Manage stuff related to video playback
-class VideoController final : public wxEvtHandler {
+class VideoController final {
 	/// Current frame number changed (new frame number)
 	agi::signal::Signal<int> Seek;
 	/// Aspect ratio was changed (type, value)
@@ -68,10 +66,6 @@ class VideoController final : public wxEvtHandler {
 
 	/// Last seen script color matrix
 	std::string color_matrix;
-
-	/// Playback timer used to periodically check if we should go to the next
-	/// frame while playing video
-	wxTimer playback;
 
 	/// Time when playback was last started
 	std::chrono::steady_clock::time_point playback_start_time;
@@ -99,10 +93,8 @@ class VideoController final : public wxEvtHandler {
 
 	std::vector<agi::signal::Connection> connections;
 
-	void OnPlayTimer(wxTimerEvent &event);
-
-	void OnVideoError(VideoProviderErrorEvent const& err);
-	void OnSubtitlesError(SubtitlesProviderErrorEvent const& err);
+	void OnVideoError(std::string const& err);
+	void OnSubtitlesError(std::string const& err);
 
 	void OnSubtitlesCommit(int type, const AssDialogue *changed);
 	void OnNewVideoProvider(AsyncVideoProvider *provider);
@@ -112,9 +104,6 @@ class VideoController final : public wxEvtHandler {
 
 public:
 	VideoController(agi::Context *context);
-
-	/// Is the video currently playing?
-	bool IsPlaying() const { return playback.IsRunning(); }
 
 	/// Get the current frame number
 	int GetFrameN() const { return frame_n; }
@@ -142,20 +131,6 @@ public:
 	/// @param ms Time to jump to in milliseconds
 	/// @param end Type of time
 	void JumpToTime(int ms, agi::vfr::Time end = agi::vfr::START);
-
-	/// Starting playing the video
-	void Play();
-	/// Play the next frame then stop
-	void NextFrame();
-	/// Play the previous frame then stop
-	void PrevFrame();
-	/// Seek to the beginning of the current line, then play to the end of it
-	void PlayLine();
-	/// Stop playing
-	void Stop();
-
-	DEFINE_SIGNAL_ADDERS(Seek, AddSeekListener)
-	DEFINE_SIGNAL_ADDERS(ARChange, AddARChangeListener)
 
 	int TimeAtFrame(int frame, agi::vfr::Time type = agi::vfr::EXACT) const;
 	int FrameAtTime(int time, agi::vfr::Time type = agi::vfr::EXACT) const;

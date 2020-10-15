@@ -35,8 +35,6 @@
 #ifdef WITH_FFMS2
 #include "ffmpegsource_common.h"
 
-#include "compat.h"
-#include "format.h"
 #include "options.h"
 #include "utils.h"
 
@@ -47,8 +45,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/crc.hpp>
 #include <boost/filesystem/path.hpp>
-#include <wx/intl.h>
-#include <wx/choicdlg.h>
 
 FFmpegSourceProvider::FFmpegSourceProvider(agi::BackgroundRunner *br)
 : br(br)
@@ -61,9 +57,9 @@ FFmpegSourceProvider::FFmpegSourceProvider(agi::BackgroundRunner *br)
 /// @param CacheName    The filename of the output index file
 /// @param Trackmask    A binary mask of the track numbers to index
 FFMS_Index *FFmpegSourceProvider::DoIndexing(FFMS_Indexer *Indexer,
-	                                         agi::fs::path const& CacheName,
-	                                         TrackSelection Track,
-	                                         FFMS_IndexErrorHandling IndexEH) {
+											 agi::fs::path const& CacheName,
+											 TrackSelection Track,
+											 FFMS_IndexErrorHandling IndexEH) {
 	char FFMSErrMsg[1024];
 	FFMS_ErrorInfo ErrInfo;
 	ErrInfo.Buffer		= FFMSErrMsg;
@@ -74,8 +70,8 @@ FFMS_Index *FFmpegSourceProvider::DoIndexing(FFMS_Indexer *Indexer,
 	// index all audio tracks
 	FFMS_Index *Index;
 	br->Run([&](agi::ProgressSink *ps) {
-		ps->SetTitle(from_wx(_("Indexing")));
-		ps->SetMessage(from_wx(_("Reading timecodes and frame/sample data")));
+		ps->SetTitle("Indexing");
+		ps->SetMessage("Reading timecodes and frame/sample data");
 		TIndexCallback callback = [](int64_t Current, int64_t Total, void *Private) -> int {
 			auto ps = static_cast<agi::ProgressSink *>(Private);
 			ps->SetProgress(Current, Total);
@@ -114,27 +110,6 @@ std::map<int, std::string> FFmpegSourceProvider::GetTracksOfType(FFMS_Indexer *I
 		}
 	}
 	return TrackList;
-}
-
-FFmpegSourceProvider::TrackSelection
-FFmpegSourceProvider::AskForTrackSelection(const std::map<int, std::string> &TrackList,
-                                           FFMS_TrackType Type) {
-	std::vector<int> TrackNumbers;
-	wxArrayString Choices;
-
-	for (auto const& track : TrackList) {
-		Choices.Add(agi::wxformat(_("Track %02d: %s"), track.first, track.second));
-		TrackNumbers.push_back(track.first);
-	}
-
-	int Choice = wxGetSingleChoiceIndex(
-		Type == FFMS_TYPE_VIDEO ? _("Multiple video tracks detected, please choose the one you wish to load:") : _("Multiple audio tracks detected, please choose the one you wish to load:"),
-		Type == FFMS_TYPE_VIDEO ? _("Choose video track") : _("Choose audio track"),
-		Choices);
-
-	if (Choice < 0)
-		return TrackSelection::None;
-	return static_cast<TrackSelection>(TrackNumbers[Choice]);
 }
 
 /// @brief Set ffms2 log level according to setting in config.dat

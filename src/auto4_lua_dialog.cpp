@@ -34,11 +34,9 @@
 
 #include "auto4_lua.h"
 
-#include "colour_button.h"
-#include "compat.h"
 #include "string_codec.h"
-#include "validators.h"
 
+#include <libaegisub/color.h>
 #include <libaegisub/log.h>
 #include <libaegisub/lua/utils.h>
 #include <libaegisub/make_unique.h>
@@ -49,16 +47,6 @@
 #include <boost/range/algorithm.hpp>
 #include <cfloat>
 #include <unordered_map>
-
-#include <wx/button.h>
-#include <wx/checkbox.h>
-#include <wx/combobox.h>
-#include <wx/dialog.h>
-#include <wx/gbsizer.h>
-#include <wx/panel.h>
-#include <wx/spinctrl.h>
-#include <wx/stattext.h>
-#include <wx/valgen.h>
 
 using namespace agi::lua;
 namespace {
@@ -101,19 +89,31 @@ namespace {
 				cont.push_back(lua_tostring(L, -1));
 		});
 	}
+	
+	enum ButtonIds {
+		BTN_OK,
+		BTN_YES,
+		BTN_SAVE,
+		BTN_APPLY,
+		BTN_CLOSE,
+		BTN_NO,
+		BTN_CANCEL,
+		BTN_HELP,
+		BTN_CONTEXT_HELP
+	};
 
-	int string_to_wx_id(std::string const& str) {
+	int string_to_button_id(std::string const& str) {
 		static std::unordered_map<std::string, int> ids;
 		if (ids.empty()) {
-			ids["ok"] = wxID_OK;
-			ids["yes"] = wxID_YES;
-			ids["save"] = wxID_SAVE;
-			ids["apply"] = wxID_APPLY;
-			ids["close"] = wxID_CLOSE;
-			ids["no"] = wxID_NO;
-			ids["cancel"] = wxID_CANCEL;
-			ids["help"] = wxID_HELP;
-			ids["context_help"] = wxID_CONTEXT_HELP;
+			ids["ok"] = BTN_OK;
+			ids["yes"] = BTN_YES;
+			ids["save"] = BTN_SAVE;
+			ids["apply"] = BTN_APPLY;
+			ids["close"] = BTN_CLOSE;
+			ids["no"] = BTN_NO;
+			ids["cancel"] = BTN_CANCEL;
+			ids["help"] = BTN_HELP;
+			ids["context_help"] = BTN_CONTEXT_HELP;
 		}
 		auto it = ids.find(str);
 		return it == end(ids) ? -1 : it->second;
@@ -141,12 +141,6 @@ namespace Automation4 {
 		public:
 			Label(lua_State *L) : LuaDialogControl(L), label(get_field(L, "label")) { }
 
-			wxControl *Create(wxWindow *parent) override {
-				return new wxStaticText(parent, -1, to_wx(label));
-			}
-
-			int GetSizerFlags() const override { return wxALIGN_CENTRE_VERTICAL | wxALIGN_LEFT; }
-
 			void LuaReadBack(lua_State *L) override {
 				// Label doesn't produce output, so let it be nil
 				lua_pushnil(L);
@@ -157,7 +151,6 @@ namespace Automation4 {
 		class Edit : public LuaDialogControl {
 		protected:
 			std::string text;
-			wxTextCtrl *cw = nullptr;
 
 		public:
 			Edit(lua_State *L)
@@ -173,14 +166,6 @@ namespace Automation4 {
 			bool CanSerialiseValue() const override { return true; }
 			std::string SerialiseValue() const override { return inline_string_encode(text); }
 			void UnserialiseValue(const std::string &serialised) override { text = inline_string_decode(serialised); }
-
-			wxControl *Create(wxWindow *parent) override {
-				cw = new wxTextCtrl(parent, -1, to_wx(text));
-				cw->SetMaxLength(0);
-				cw->SetValidator(StringBinder(&text));
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
 
 			void LuaReadBack(lua_State *L) override {
 				lua_pushstring(L, text.c_str());
@@ -204,12 +189,6 @@ namespace Automation4 {
 			std::string SerialiseValue() const override { return inline_string_encode(color.GetHexFormatted(alpha)); }
 			void UnserialiseValue(const std::string &serialised) override { color = inline_string_decode(serialised); }
 
-			wxControl *Create(wxWindow *parent) override {
-				wxControl *cw = new ColourButton(parent, wxSize(50*width,10*height), alpha, color, ColorValidator(&color));
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
-
 			void LuaReadBack(lua_State *L) override {
 				lua_pushstring(L, color.GetHexFormatted(alpha).c_str());
 			}
@@ -219,19 +198,10 @@ namespace Automation4 {
 		class Textbox final : public Edit {
 		public:
 			Textbox(lua_State *L) : Edit(L) { }
-
-			// Same serialisation interface as single-line edit
-			wxControl *Create(wxWindow *parent) override {
-				cw = new wxTextCtrl(parent, -1, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE, StringBinder(&text));
-				cw->SetMinSize(wxSize(0, 30));
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
 		};
 
 		/// Integer only edit
 		class IntEdit final : public Edit {
-			wxSpinCtrl *cw = nullptr;
 			int value;
 			int min, max;
 
@@ -252,13 +222,6 @@ namespace Automation4 {
 			std::string SerialiseValue() const override { return std::to_string(value); }
 			void UnserialiseValue(const std::string &serialised) override { value = atoi(serialised.c_str()); }
 
-			wxControl *Create(wxWindow *parent) override {
-				cw = new wxSpinCtrl(parent, -1, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, min, max, value);
-				cw->SetValidator(wxGenericValidator(&value));
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
-
 			void LuaReadBack(lua_State *L) override {
 				lua_pushinteger(L, value);
 			}
@@ -270,7 +233,6 @@ namespace Automation4 {
 			double min;
 			double max;
 			double step;
-			wxSpinCtrlDouble *scd = nullptr;
 
 		public:
 			FloatEdit(lua_State *L)
@@ -290,20 +252,6 @@ namespace Automation4 {
 			std::string SerialiseValue() const override { return std::to_string(value); }
 			void UnserialiseValue(const std::string &serialised) override { value = atof(serialised.c_str()); }
 
-			wxControl *Create(wxWindow *parent) override {
-				if (step > 0) {
-					scd = new wxSpinCtrlDouble(parent, -1, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, min, max, value, step);
-					scd->SetValidator(DoubleSpinValidator(&value));
-					scd->SetToolTip(to_wx(hint));
-					return scd;
-				}
-
-				DoubleValidator val(&value, min, max);
-				cw = new wxTextCtrl(parent, -1, "", wxDefaultPosition, wxDefaultSize, 0, val);
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
-
 			void LuaReadBack(lua_State *L) override {
 				lua_pushnumber(L, value);
 			}
@@ -313,7 +261,6 @@ namespace Automation4 {
 		class Dropdown final : public LuaDialogControl {
 			std::vector<std::string> items;
 			std::string value;
-			wxComboBox *cw = nullptr;
 
 		public:
 			Dropdown(lua_State *L)
@@ -328,12 +275,6 @@ namespace Automation4 {
 			std::string SerialiseValue() const override { return inline_string_encode(value); }
 			void UnserialiseValue(const std::string &serialised) override { value = inline_string_decode(serialised); }
 
-			wxControl *Create(wxWindow *parent) override {
-				cw = new wxComboBox(parent, -1, to_wx(value), wxDefaultPosition, wxDefaultSize, to_wx(items), wxCB_READONLY, StringBinder(&value));
-				cw->SetToolTip(to_wx(hint));
-				return cw;
-			}
-
 			void LuaReadBack(lua_State *L) override {
 				lua_pushstring(L, value.c_str());
 			}
@@ -342,7 +283,6 @@ namespace Automation4 {
 		class Checkbox final : public LuaDialogControl {
 			std::string label;
 			bool value;
-			wxCheckBox *cw = nullptr;
 
 		public:
 			Checkbox(lua_State *L)
@@ -355,14 +295,6 @@ namespace Automation4 {
 			bool CanSerialiseValue() const override { return true; }
 			std::string SerialiseValue() const override { return value ? "1" : "0"; }
 			void UnserialiseValue(const std::string &serialised) override { value = serialised != "0"; }
-
-			wxControl *Create(wxWindow *parent) override {
-				cw = new wxCheckBox(parent, -1, to_wx(label));
-				cw->SetValidator(wxGenericValidator(&value));
-				cw->SetToolTip(to_wx(hint));
-				cw->SetValue(value);
-				return cw;
-			}
 
 			void LuaReadBack(lua_State *L) override {
 				lua_pushboolean(L, value);
@@ -429,7 +361,7 @@ namespace Automation4 {
 		if (include_buttons && lua_istable(L, 3)) {
 			lua_pushvalue(L, 3);
 			lua_for_each(L, [&]{
-				int id = string_to_wx_id(check_string(L, -2));
+				int id = string_to_button_id(check_string(L, -2));
 				std::string label = check_string(L, -1);
 				auto btn = boost::find_if(buttons,
 					[&](std::pair<int, std::string>& btn) { return btn.second == label; });
@@ -440,68 +372,10 @@ namespace Automation4 {
 		}
 	}
 
-	wxWindow* LuaDialog::CreateWindow(wxWindow *parent) {
-		window = new wxPanel(parent);
-
-		auto s = new wxGridBagSizer(4, 4);
-		for (auto& c : controls)
-			s->Add(c->Create(window), wxGBPosition(c->y, c->x),
-				wxGBSpan(c->height, c->width), c->GetSizerFlags());
-
-		if (!use_buttons) {
-			window->SetSizerAndFit(s);
-			return window;
-		}
-
-		if (buttons.size() == 0) {
-			buttons.emplace_back(wxID_OK, "");
-			buttons.emplace_back(wxID_CANCEL, "");
-		}
-
-		auto dialog = static_cast<wxDialog *>(parent);
-		auto bs = new wxStdDialogButtonSizer;
-
-		auto make_button = [&](wxWindowID id, int button_pushed, std::string const& text) -> wxButton *{
-			auto button = new wxButton(window, id, to_wx(text));
-			button->Bind(wxEVT_BUTTON, [=](wxCommandEvent &evt) {
-				this->button_pushed = button_pushed;
-				dialog->TransferDataFromWindow();
-				dialog->EndModal(0);
-			});
-
-			if (id == wxID_OK || id == wxID_YES || id == wxID_SAVE) {
-				button->SetDefault();
-				dialog->SetAffirmativeId(id);
-			}
-
-			if (id == wxID_CLOSE || id == wxID_NO)
-				dialog->SetEscapeId(id);
-
-			return button;
-		};
-
-		if (boost::count(buttons | boost::adaptors::map_keys, -1) == 0) {
-			for (size_t i = 0; i < buttons.size(); ++i)
-				bs->AddButton(make_button(buttons[i].first, i, buttons[i].second));
-			bs->Realize();
-		}
-		else {
-			for (size_t i = 0; i < buttons.size(); ++i)
-				bs->Add(make_button(buttons[i].first, i, buttons[i].second));
-		}
-
-		auto ms = new wxBoxSizer(wxVERTICAL);
-		ms->Add(s, 0, wxBOTTOM, 5);
-		ms->Add(bs);
-		window->SetSizerAndFit(ms);
-
-		return window;
-	}
-
 	int LuaDialog::LuaReadBack(lua_State *L) {
 		// First read back which button was pressed, if any
 		if (use_buttons) {
-			if (button_pushed == -1 || buttons[button_pushed].first == wxID_CANCEL)
+			if (button_pushed == -1 || buttons[button_pushed].first == BTN_CANCEL)
 				lua_pushboolean(L, false);
 			else
 				lua_pushstring(L, buttons[button_pushed].second.c_str());

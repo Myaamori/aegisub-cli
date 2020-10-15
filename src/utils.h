@@ -34,39 +34,12 @@
 #include <cstdint>
 #include <string>
 
-#include <wx/bitmap.h>
-#include <wx/string.h>
-
-class wxKeyEvent;
-class wxMouseEvent;
-class wxStyledTextCtrl;
-class wxWindow;
-
-wxString PrettySize(int bytes);
-
 std::string float_to_string(double val);
 
 /// @brief Get the smallest power of two that is greater or equal to x
 ///
 /// Algorithm from http://bob.allegronetwork.com/prog/tricks.html
 int SmallestPowerOf2(int x);
-
-/// @brief Launch a new copy of Aegisub.
-///
-/// Contrary to what the name suggests, this does not close the currently
-/// running process.
-void RestartAegisub();
-
-/// Add the OS X 10.7+ full-screen button to a window
-void AddFullScreenButton(wxWindow *window);
-
-void SetFloatOnParent(wxWindow *window);
-
-/// Forward a mouse wheel event to the window under the mouse if needed
-/// @param source The initial target of the wheel event
-/// @param evt The event
-/// @return Should the calling code process the event?
-bool ForwardMouseWheelEvent(wxWindow *source, wxMouseEvent &evt);
 
 /// Clean up the given cache directory, limiting the size to max_size
 /// @param directory Directory to clean
@@ -84,35 +57,4 @@ template<typename T> inline T mid(T a, T b, T c) {
 	return a > b ? a : (b > c ? c : b);
 }
 
-/// Get the text contents of the clipboard, or empty string on failure
-std::string GetClipboard();
-/// Try to set the clipboard to the given string
-void SetClipboard(std::string const& new_value);
-void SetClipboard(wxBitmap const& new_value);
-
 #define countof(array) (sizeof(array) / sizeof(array[0]))
-
-wxString FontFace(std::string opt_prefix);
-
-agi::fs::path OpenFileSelector(wxString const& message, std::string const& option_name, std::string const& default_filename, std::string const& default_extension, std::string const& wildcard, wxWindow *parent);
-agi::fs::path SaveFileSelector(wxString const& message, std::string const& option_name, std::string const& default_filename, std::string const& default_extension, std::string const& wildcard, wxWindow *parent);
-
-wxString LocalizedLanguageName(wxString const& lang);
-
-namespace osx {
-	/// Make the given menu the OS X Window menu
-	void make_windows_menu(wxMenu *wxmenu);
-	/// Activate a top-level document window other than the given one
-	bool activate_top_window_other_than(wxFrame *wx);
-	// Bring all windows to the front, maintaining relative z-order
-	void bring_to_front();
-
-namespace ime {
-	/// Inject the IME helper into the given wxSTC
-	void inject(wxStyledTextCtrl *ctrl);
-	/// Invalidate any pending text from the IME
-	void invalidate(wxStyledTextCtrl *ctrl);
-	/// Give the IME a chance to process a key event and return whether it did
-	bool process_key_event(wxStyledTextCtrl *ctrl, wxKeyEvent &);
-}
-}

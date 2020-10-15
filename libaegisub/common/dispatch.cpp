@@ -38,7 +38,8 @@ namespace {
 
 	class BackgroundQueue final : public agi::dispatch::Queue {
 		void DoInvoke(agi::dispatch::Thunk thunk) override {
-			service->post(thunk);
+			invoke_main(thunk);
+			//service->post(thunk);
 		}
 	};
 

@@ -40,11 +40,8 @@
 #include "ass_style.h"
 #include "async_video_provider.h"
 #include "auto4_lua_factory.h"
-#include "audio_controller.h"
-#include "audio_timing.h"
 #include "command/command.h"
-#include "compat.h"
-#include "frame_main.h"
+#include "dialog_progress.h"
 #include "include/aegisub/context.h"
 #include "options.h"
 #include "project.h"
@@ -55,6 +52,7 @@
 
 #include <libaegisub/dispatch.h>
 #include <libaegisub/format.h>
+#include <libaegisub/log.h>
 #include <libaegisub/lua/ffi.h>
 #include <libaegisub/lua/modules.h>
 #include <libaegisub/lua/script_reader.h>
@@ -69,22 +67,14 @@
 #include <boost/scope_exit.hpp>
 #include <cassert>
 #include <mutex>
-#include <wx/clipbrd.h>
-#include <wx/log.h>
-#include <wx/msgdlg.h>
 
 using namespace agi::lua;
 using namespace Automation4;
 
 namespace {
-	wxString get_wxstring(lua_State *L, int idx)
+	std::string get_string(lua_State *L, int idx)
 	{
-		return wxString::FromUTF8(lua_tostring(L, idx));
-	}
-
-	wxString check_wxstring(lua_State *L, int idx)
-	{
-		return to_wx(check_string(L, idx));
+		return std::string(lua_tostring(L, idx));
 	}
 
 	void set_context(lua_State *L, const agi::Context *c)
@@ -118,37 +108,25 @@ namespace {
 
 	int get_translation(lua_State *L)
 	{
-		wxString str(check_wxstring(L, 1));
-		push_value(L, _(str).utf8_str());
+		std::string str(check_string(L, 1));
+		push_value(L, str);
+		return 1;
+	}
+	
+	int register_filter_noop(lua_State *L)
+	{
+		lua_pushnil(L);
 		return 1;
 	}
 
 	const char *clipboard_get()
 	{
-		std::string data = GetClipboard();
-		if (data.empty())
-			return nullptr;
-		return strndup(data);
+		return nullptr;
 	}
 
 	bool clipboard_set(const char *str)
 	{
-		bool succeeded = false;
-
-#if wxUSE_OLE
-		// OLE needs to be initialized on each thread that wants to write to
-		// the clipboard, which wx does not handle automatically
-		wxClipboard cb;
-#else
-		wxClipboard &cb = *wxTheClipboard;
-#endif
-		if (cb.Open()) {
-			succeeded = cb.SetData(new wxTextDataObject(wxString::FromUTF8(str)));
-			cb.Close();
-			cb.Flush();
-		}
-
-		return succeeded;
+		return false;
 	}
 
 	int clipboard_init(lua_State *L)
@@ -261,27 +239,21 @@ namespace {
 
 	int lua_get_audio_selection(lua_State *L)
 	{
-		const agi::Context *c = get_context(L);
-		if (!c || !c->audioController || !c->audioController->GetTimingController()) {
-			lua_pushnil(L);
-			return 1;
-		}
-		const TimeRange range = c->audioController->GetTimingController()->GetActiveLineRange();
-		push_value(L, range.begin());
-		push_value(L, range.end());
+		push_value(L, 0);
+		push_value(L, 0);
 		return 2;
 	}
 
 	int lua_set_status_text(lua_State *L)
 	{
 		const agi::Context *c = get_context(L);
-		if (!c || !c->frame) {
+		if (!c) {
 			lua_pushnil(L);
 			return 1;
 		}
 		std::string text = check_string(L, 1);
 		lua_pop(L, 1);
-		agi::dispatch::Main().Async([=] { c->frame->StatusTimeout(to_wx(text)); });
+		LOG_I("agi/auto4_lua") << "Status: " << text;
 		return 0;
 	}
 
@@ -330,15 +302,14 @@ namespace {
 	/// @param nargs Number of arguments the function takes
 	/// @param nresults Number of values the function returns
 	/// @param title Title to use for the progress dialog
-	/// @param parent Parent window for the progress dialog
 	/// @param can_open_config Can the function open its own dialogs?
 	/// @throws agi::UserCancelException if the function fails to run to completion (either due to cancelling or errors)
-	void LuaThreadedCall(lua_State *L, int nargs, int nresults, std::string const& title, wxWindow *parent, bool can_open_config);
+	void LuaThreadedCall(lua_State *L, int nargs, int nresults, std::string const& title, bool can_open_config);
 
 	class LuaCommand final : public cmd::Command, private LuaFeature {
 		std::string cmd_name;
-		wxString display;
-		wxString help;
+		std::string display;
+		std::string help;
 		int cmd_type;
 
 	public:
@@ -346,9 +317,9 @@ namespace {
 		~LuaCommand();
 
 		const char* name() const override { return cmd_name.c_str(); }
-		wxString StrMenu(const agi::Context *) const override { return display; }
-		wxString StrDisplay(const agi::Context *) const override { return display; }
-		wxString StrHelp() const override { return help; }
+		std::string StrMenu(const agi::Context *) const override { return display; }
+		std::string StrDisplay(const agi::Context *) const override { return display; }
+		std::string StrHelp() const override { return help; }
 
 		int Type() const override { return cmd_type; }
 
@@ -359,19 +330,6 @@ namespace {
 		static int LuaRegister(lua_State *L);
 	};
 
-	class LuaExportFilter final : public ExportFilter, private LuaFeature {
-		bool has_config;
-		LuaDialog *config_dialog;
-
-	protected:
-		std::unique_ptr<ScriptDialog> GenerateConfigDialog(wxWindow *parent, agi::Context *c) override;
-
-	public:
-		LuaExportFilter(lua_State *L);
-		static int LuaRegister(lua_State *L);
-
-		void ProcessSubs(AssFile *subs, wxWindow *export_dialog) override;
-	};
 	class LuaScript final : public Script {
 		lua_State *L = nullptr;
 
@@ -381,7 +339,6 @@ namespace {
 		std::string version;
 
 		std::vector<cmd::Command*> macros;
-		std::vector<std::unique_ptr<ExportFilter>> filters;
 
 		/// load script and create internal structures etc.
 		void Create();
@@ -396,7 +353,6 @@ namespace {
 
 		void RegisterCommand(LuaCommand *command);
 		void UnregisterCommand(LuaCommand *command);
-		void RegisterFilter(LuaExportFilter *filter);
 
 		static LuaScript* GetScriptObject(lua_State *L);
 
@@ -410,7 +366,6 @@ namespace {
 		bool GetLoadedState() const override { return L != nullptr; }
 
 		std::vector<cmd::Command*> GetMacros() const override { return macros; }
-		std::vector<ExportFilter*> GetFilters() const override;
 	};
 
 	LuaScript::LuaScript(agi::fs::path const& filename)
@@ -474,7 +429,7 @@ namespace {
 		lua_createtable(L, 0, 13);
 
 		set_field<LuaCommand::LuaRegister>(L, "register_macro");
-		set_field<LuaExportFilter::LuaRegister>(L, "register_filter");
+		set_field<register_filter_noop>(L, "register_filter");
 		set_field<lua_text_textents>(L, "text_extents");
 		set_field<frame_from_ms>(L, "frame_from_ms");
 		set_field<ms_from_frame>(L, "ms_from_frame");
@@ -547,18 +502,8 @@ namespace {
 		for (int i = macros.size() - 1; i >= 0; --i)
 			cmd::unreg(macros[i]->name());
 
-		filters.clear();
-
 		lua_close(L);
 		L = nullptr;
-	}
-
-	std::vector<ExportFilter*> LuaScript::GetFilters() const
-	{
-		std::vector<ExportFilter *> ret;
-		ret.reserve(filters.size());
-		for (auto& filter : filters) ret.push_back(filter.get());
-		return ret;
 	}
 
 	void LuaScript::RegisterCommand(LuaCommand *command)
@@ -566,7 +511,7 @@ namespace {
 		for (auto macro : macros) {
 			if (macro->name() == command->name()) {
 				error(L, "A macro named '%s' is already defined in script '%s'",
-					command->StrDisplay(nullptr).utf8_str().data(), name.c_str());
+					command->StrDisplay(nullptr).c_str(), name.c_str());
 			}
 		}
 		macros.push_back(command);
@@ -575,11 +520,6 @@ namespace {
 	void LuaScript::UnregisterCommand(LuaCommand *command)
 	{
 		macros.erase(remove(macros.begin(), macros.end(), command), macros.end());
-	}
-
-	void LuaScript::RegisterFilter(LuaExportFilter *filter)
-	{
-		filters.emplace_back(filter);
 	}
 
 	LuaScript* LuaScript::GetScriptObject(lua_State *L)
@@ -620,11 +560,11 @@ namespace {
 		return lua_gettop(L) - pretop;
 	}
 
-	void LuaThreadedCall(lua_State *L, int nargs, int nresults, std::string const& title, wxWindow *parent, bool can_open_config)
+	void LuaThreadedCall(lua_State *L, int nargs, int nresults, std::string const& title, bool can_open_config)
 	{
 		bool failed = false;
-		BackgroundScriptRunner bsr(parent, title);
-		bsr.Run([&](ProgressSink *ps) {
+		DialogProgress bsr(title);
+		bsr.Run([&](agi::ProgressSink *ps) {
 			LuaProgressSink lps(L, ps, can_open_config);
 
 			// Insert our error handler under the function to call
@@ -686,8 +626,8 @@ namespace {
 
 	LuaCommand::LuaCommand(lua_State *L)
 	: LuaFeature(L)
-	, display(check_wxstring(L, 1))
-	, help(get_wxstring(L, 2))
+	, display(check_string(L, 1))
+	, help(get_string(L, 2))
 	, cmd_type(cmd::COMMAND_NORMAL)
 	{
 		lua_getfield(L, LUA_REGISTRYINDEX, "filename");
@@ -766,14 +706,14 @@ namespace {
 		subsobj->ProcessingComplete();
 
 		if (err) {
-			wxLogWarning("Runtime error in Lua macro validation function:\n%s", get_wxstring(L, -1));
+			LOG_W("agi/auto4_lua") << "Runtime error in Lua macro validation function:\n" << get_string(L, -1);
 			lua_pop(L, 2);
 			return false;
 		}
 
 		bool result = !!lua_toboolean(L, -2);
 
-		wxString new_help_string(get_wxstring(L, -1));
+		std::string new_help_string(get_string(L, -1));
 		if (new_help_string.size()) {
 			help = new_help_string;
 			cmd_type |= cmd::COMMAND_DYNAMIC_HELP;
@@ -803,7 +743,7 @@ namespace {
 		push_value(L, original_active);
 
 		try {
-			LuaThreadedCall(L, 3, 2, from_wx(StrDisplay(c)), c->parent, true);
+			LuaThreadedCall(L, 3, 2, StrDisplay(c), true);
 		}
 		catch (agi::UserCancelException const&) {
 			subsobj->Cancel();
@@ -820,7 +760,7 @@ namespace {
 		if (lua_isnumber(L, -1)) {
 			active_idx = lua_tointeger(L, -1);
 			if (active_idx < 1 || active_idx > (int)lines.size()) {
-				wxLogError("Active row %d is out of bounds (must be 1-%u)", active_idx, lines.size());
+				LOG_E("agi/auto4_lua") << "Active row " << active_idx << " is out of bounds (must be 1-" << lines.size() << ")";
 				active_idx = original_active;
 			}
 		}
@@ -836,12 +776,12 @@ namespace {
 					return;
 				int cur = lua_tointeger(L, -1);
 				if (cur < 1 || cur > (int)lines.size()) {
-					wxLogError("Selected row %d is out of bounds (must be 1-%u)", cur, lines.size());
+					LOG_E("agi/auto4_lua") << "Selected row " << cur << " is out of bounds (must be 1-" << lines.size() << ")";
 					throw LuaForEachBreak();
 				}
 
 				if (typeid(*lines[cur - 1]) != typeid(AssDialogue)) {
-					wxLogError("Selected row %d is not a dialogue line", cur);
+					LOG_E("agi/auto4_lua") << "Selected row " << cur << " is not a dialogue line";
 					throw LuaForEachBreak();
 				}
 
@@ -907,7 +847,7 @@ namespace {
 
 		bool result = false;
 		if (err)
-			wxLogWarning("Runtime error in Lua macro IsActive function:\n%s", get_wxstring(L, -1));
+			LOG_W("agi/auto4_lua") << "Runtime error in Lua macro IsActive function:\n" << get_string(L, -1);
 		else
 			result = !!lua_toboolean(L, -1);
 
@@ -916,111 +856,6 @@ namespace {
 		lua_pop(L, 1);
 
 		return result;
-	}
-
-	// LuaFeatureFilter
-	LuaExportFilter::LuaExportFilter(lua_State *L)
-	: ExportFilter(check_string(L, 1), lua_tostring(L, 2), lua_tointeger(L, 3))
-	, LuaFeature(L)
-	{
-		if (!lua_isfunction(L, 4))
-			error(L, "The filter processing function must be a function");
-
-		// new table for containing the functions for this feature
-		lua_createtable(L, 0, 2);
-
-		// store processing function
-		push_value(L, "run");
-		lua_pushvalue(L, 4);
-		lua_rawset(L, -3);
-
-		// store config function
-		push_value(L, "config");
-		lua_pushvalue(L, 5);
-		has_config = lua_isfunction(L, -1);
-		lua_rawset(L, -3);
-
-		// store the table in the registry
-		RegisterFeature();
-
-		LuaScript::GetScriptObject(L)->RegisterFilter(this);
-	}
-
-	int LuaExportFilter::LuaRegister(lua_State *L)
-	{
-		static std::mutex mutex;
-		auto filter = agi::make_unique<LuaExportFilter>(L);
-		{
-			std::lock_guard<std::mutex> lock(mutex);
-			AssExportFilterChain::Register(std::move(filter));
-		}
-		return 0;
-	}
-
-	void LuaExportFilter::ProcessSubs(AssFile *subs, wxWindow *export_dialog)
-	{
-		LuaStackcheck stackcheck(L);
-
-		GetFeatureFunction("run");
-		stackcheck.check_stack(1);
-
-		// The entire point of an export filter is to modify the file, but
-		// setting undo points makes no sense
-		auto subsobj = new LuaAssFile(L, subs, true);
-		assert(lua_isuserdata(L, -1));
-		stackcheck.check_stack(2);
-
-		// config
-		if (has_config && config_dialog) {
-			int results_produced = config_dialog->LuaReadBack(L);
-			assert(results_produced == 1);
-			(void) results_produced;	// avoid warning on release builds
-			// TODO, write back stored options here
-		} else {
-			// no config so put an empty table instead
-			lua_newtable(L);
-		}
-		assert(lua_istable(L, -1));
-		stackcheck.check_stack(3);
-
-		try {
-			LuaThreadedCall(L, 2, 0, GetName(), export_dialog, false);
-			stackcheck.check_stack(0);
-			subsobj->ProcessingComplete();
-		}
-		catch (agi::UserCancelException const&) {
-			subsobj->Cancel();
-			throw;
-		}
-	}
-
-	std::unique_ptr<ScriptDialog> LuaExportFilter::GenerateConfigDialog(wxWindow *parent, agi::Context *c)
-	{
-		if (!has_config)
-			return nullptr;
-
-		set_context(L, c);
-
-		GetFeatureFunction("config");
-
-		// prepare function call
-		auto subsobj = new LuaAssFile(L, c->ass.get());
-		// stored options
-		lua_newtable(L); // TODO, nothing for now
-
-		// do call
-		int err = lua_pcall(L, 2, 1, 0);
-		subsobj->ProcessingComplete();
-
-		if (err) {
-			wxLogWarning("Runtime error in Lua config dialog function:\n%s", get_wxstring(L, -1));
-			lua_pop(L, 1); // remove error message
-		} else {
-			// Create config dialogue from table on top of stack
-			config_dialog = new LuaDialog(L, false);
-		}
-
-		return std::unique_ptr<ScriptDialog>{config_dialog};
 	}
 }
 

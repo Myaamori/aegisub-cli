@@ -41,7 +41,6 @@ conf.set_quoted('P_DATA', dataroot)
 if get_option('credit') != ''
     conf.set_quoted('BUILD_CREDIT', get_option('credit'))
 endif
-conf.set('WITH_UPDATE_CHECKER', get_option('enable_update_checker'))
 
 deps = []
 deps_inc = []
@@ -67,16 +66,14 @@ if not iconv_dep.found() and host_machine.system() == 'windows'
 endif
 deps += iconv_dep
 
-deps += dependency('libass', version: '>=0.9.7',
-                   fallback: ['libass', 'libass_dep'])
 deps += dependency('boost', version: '>=1.50.0',
                    modules: ['chrono', 'filesystem', 'locale', 'regex',
-                             'system', 'thread'])
+                             'system', 'thread', 'program_options'])
 deps += dependency('zlib', fallback: ['zlib', 'zlib_dep'])
 
 wx_dep = dependency('wxWidgets', version: '>=3.0.0',
                     required: cxx.get_id() != 'msvc',
-                    modules: ['std', 'stc', 'gl'])
+                    modules: ['std'])
 if not wx_dep.found() # this will only be hit with msvc
     if get_option('wx_path') != ''
         deps_inc += include_directories(get_option('wx_path') / 'include' / 'msvc', get_option('wx_path') / 'include')
@@ -108,16 +105,9 @@ deps += icu_i18n_dep
 
 dep_avail = []
 foreach dep: [
-    # audio, in order of precedence
-    ['libpulse', '', 'PulseAudio'],
-    ['alsa', '', 'ALSA'],
-    ['portaudio-2.0', '', 'PortAudio'],
-    ['openal', '>=0.0.8', 'OpenAL'],
     # video
     ['ffms2', '', 'FFMS2'], # needs a proper port
     # other
-    ['fftw3', '', 'FFTW3'],
-    ['hunspell', '', 'Hunspell'], # needs a proper port
     ['uchardet', '', 'uchardet'], # needs a proper port
 ]
     d = dependency(dep[0], version: dep[1] != '' ? dep[1]: '>=0',
@@ -133,21 +123,6 @@ foreach dep: [
     endif
 endforeach
 
-if host_machine.system() == 'windows' and not get_option('directsound').disabled()
-    dsound_dep = cc.find_library('dsound', required: get_option('directsound'))
-    winmm_dep = cc.find_library('winmm', required: get_option('directsound'))
-    ole32_dep = cc.find_library('ole32', required: get_option('directsound'))
-    have_dsound_h = cc.has_header('dsound.h')
-    if not have_dsound_h and get_option('directsound').enabled()
-        error('DirectSound enabled but dsound.h not found')
-    endif
-    if dsound_dep.found() and winmm_dep.found() and ole32_dep.found() and have_dsound_h
-        deps += [dsound_dep, winmm_dep, ole32_dep]
-        conf.set('WITH_DIRECTSOUND', '1')
-        dep_avail += 'DirectSound'
-    endif
-endif
-
 if host_machine.system() == 'darwin'
     frameworks_dep = dependency('appleframeworks', modules : ['CoreText', 'CoreFoundation'])
     deps += frameworks_dep
@@ -155,75 +130,14 @@ endif
 
 # TODO: OSS
 
-def_audio = get_option('default_audio_output')
-if def_audio != 'auto'
-    if not dep_avail.contains(def_audio)
-        error('Default audio output "@0@" selected but not available'.format(def_audio))
-    endif
-elif dep_avail.length() != 0
-    def_audio = dep_avail[0]
-else
-    def_audio = ''
-endif
-
 conf_platform = configuration_data()
-conf_platform.set('DEFAULT_PLAYER_AUDIO', def_audio)
+conf_platform.set('DEFAULT_PLAYER_AUDIO', '')
 
-luajit = dependency('luajit', version: '>=2.0.0', required: get_option('system_luajit'))
-if luajit.found()
-    luajit_test = cc.run('''#include <lauxlib.h>
-int main(void)
-{
-    lua_State *L = luaL_newstate();
-    if (!L) return 1;
-    // This is valid in lua 5.2, but a syntax error in 5.1
-    const char testprogram[] = "function foo() while true do break return end end";
-    return luaL_loadstring(L, testprogram) == LUA_ERRSYNTAX;
-}''', dependencies: luajit)
+luajit_sp = subproject('luajit')
+luajit_inc = luajit_sp.get_variable('incdir')
+deps += luajit_sp.get_variable('luajit_dep')
 
-    if luajit_test.returncode() == 1
-        if get_option('system_luajit')
-            error('System luajit found but not compiled in 5.2 mode')
-        else
-            message('System luajit found but not compiled in 5.2 mode; using built-in luajit')
-        endif
-    else
-        deps += luajit
-    endif
-else
-    message('System luajit not found; using built-in luajit')
-endif
-
-if not deps.contains(luajit)
-    luajit_sp = subproject('luajit')
-    luajit_inc = luajit_sp.get_variable('incdir')
-    deps += luajit_sp.get_variable('luajit_dep')
-else
-    luajit_inc = include_directories(luajit.get_pkgconfig_variable('includedir'))
-endif
 subdir('subprojects/luabins/src')
-
-dep_gl = dependency('gl', required: false)
-if not dep_gl.found()
-    if host_machine.system() == 'windows'
-        dep_gl = cc.find_library('opengl32', required: false)
-    else
-        dep_gl = cc.find_library('GL', required: false)
-    endif
-
-    if not cc.has_header('GL/gl.h')
-        dep_gl = dependency('', required: false)
-    endif
-endif
-if host_machine.system() == 'darwin'
-    conf.set('HAVE_OPENGL_GL_H', 1)
-endif
-
-if not dep_gl.found()
-    error('OpenGL implementation not found')
-endif
-
-deps += dep_gl
 
 # TODO: csri
 
@@ -231,6 +145,6 @@ acconf = configure_file(output: 'acconf.h', configuration: conf)
 
 subdir('automation')
 subdir('libaegisub')
-subdir('packages')
-subdir('po')
+#subdir('packages')
+#subdir('po')
 subdir('src')

@@ -33,8 +33,6 @@
 
 #include <array>
 
-class wxArrayString;
-
 class AssStyle final : public AssEntry, public AssEntryListHook {
 	std::string data;
 
@@ -66,9 +64,6 @@ public:
 
 	/// Update the raw line data after one or more of the public members have been changed
 	void UpdateData();
-
-	/// @brief Get a list of valid ASS font encodings
-	static void GetEncodings(wxArrayString &encodingStrings);
 
 	AssStyle();
 	AssStyle(std::string const& data, int version=1);

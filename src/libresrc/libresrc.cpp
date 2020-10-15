@@ -13,23 +13,3 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "libresrc.h"
-
-#include <wx/bitmap.h>
-#include <wx/icon.h>
-#include <wx/image.h>
-#include <wx/intl.h>
-#include <wx/mstream.h>
-
-wxBitmap libresrc_getimage(const unsigned char *buff, size_t size, int dir) {
-	wxMemoryInputStream mem(buff, size);
-	if (dir != wxLayout_RightToLeft)
-		return wxBitmap(wxImage(mem));
-	return wxBitmap(wxImage(mem).Mirror());
-}
-
-wxIcon libresrc_geticon(const unsigned char *buff, size_t size) {
-	wxMemoryInputStream mem(buff, size);
-	wxIcon icon;
-	icon.CopyFromBitmap(wxBitmap(wxImage(mem)));
-	return icon;
-}

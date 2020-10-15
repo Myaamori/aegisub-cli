@@ -17,16 +17,12 @@
 #include "include/aegisub/context.h"
 
 #include "ass_file.h"
-#include "audio_controller.h"
 #include "auto4_base.h"
-#include "dialog_manager.h"
 #include "initial_line_state.h"
 #include "options.h"
 #include "project.h"
-#include "search_replace_engine.h"
 #include "selection_controller.h"
 #include "subs_controller.h"
-#include "text_selection_controller.h"
 #include "video_controller.h"
 
 #include <libaegisub/make_unique.h>
@@ -35,19 +31,14 @@
 namespace agi {
 Context::Context()
 : ass(make_unique<AssFile>())
-, textSelectionController(make_unique<TextSelectionController>())
 , subsController(make_unique<SubsController>(this))
 , project(make_unique<Project>(this))
 , local_scripts(make_unique<Automation4::LocalScriptManager>(this))
 , selectionController(make_unique<SelectionController>(this))
 , videoController(make_unique<VideoController>(this))
-, audioController(make_unique<AudioController>(this))
 , initialLineState(make_unique<InitialLineState>(this))
-, search(make_unique<SearchReplaceEngine>(this))
 , path(make_unique<Path>(*config::path))
-, dialog(make_unique<DialogManager>())
 {
-	subsController->SetSelectionController(selectionController.get());
 }
 
 Context::~Context() = default;

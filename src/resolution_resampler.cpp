@@ -30,7 +30,6 @@
 #include <algorithm>
 #include <boost/algorithm/string/predicate.hpp>
 #include <cmath>
-#include <wx/intl.h>
 
 enum {
 	LEFT = 0,
@@ -286,5 +285,5 @@ void ResampleResolution(AssFile *ass, ResampleSettings settings) {
 	if (resample_colors)
 		ass->SetScriptInfo("YCbCr Matrix", MatrixToString(settings.dest_matrix));
 
-	ass->Commit(_("resolution resampling"), AssFile::COMMIT_SCRIPTINFO | AssFile::COMMIT_DIAG_FULL);
+	ass->Commit(/*"resolution resampling",*/ AssFile::COMMIT_SCRIPTINFO | AssFile::COMMIT_DIAG_FULL);
 }

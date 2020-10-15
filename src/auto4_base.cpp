@@ -31,8 +31,6 @@
 
 #include "ass_file.h"
 #include "ass_style.h"
-#include "compat.h"
-#include "dialog_progress.h"
 #include "include/aegisub/context.h"
 #include "options.h"
 #include "string_codec.h"
@@ -41,6 +39,7 @@
 #include <libaegisub/dispatch.h>
 #include <libaegisub/format.h>
 #include <libaegisub/fs.h>
+#include <libaegisub/log.h>
 #include <libaegisub/path.h>
 #include <libaegisub/make_unique.h>
 #include <libaegisub/split.h>
@@ -49,9 +48,9 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <future>
 
+#ifndef WIN32
 #include <wx/dcmemory.h>
-#include <wx/log.h>
-#include <wx/sizer.h>
+#endif
 
 #ifdef __WINDOWS__
 #define WIN32_LEAN_AND_MEAN
@@ -135,11 +134,11 @@ namespace Automation4 {
 			style->italic ? wxFONTSTYLE_ITALIC : wxFONTSTYLE_NORMAL,
 			style->bold ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL,
 			style->underline,
-			to_wx(style->font),
+			wxString(style->font.c_str(), wxConvUTF8),
 			wxFONTENCODING_SYSTEM); // FIXME! make sure to get the right encoding here, make some translation table between windows and wx encodings
 		thedc.SetFont(thefont);
 
-		wxString wtext(to_wx(text));
+		wxString wtext(text.c_str(), wxConvUTF8);
 		if (spacing) {
 			// If there's inter-character spacing, kerning info must not be used, so calculate width per character
 			// NOTE: Is kerning actually done either way?!
@@ -168,91 +167,6 @@ namespace Automation4 {
 		extlead = style->scaley / 100 * extlead / 64;
 
 		return true;
-	}
-
-	ExportFilter::ExportFilter(std::string const& name, std::string const& description, int priority)
-	: AssExportFilter(name, description, priority)
-	{
-	}
-
-	std::string ExportFilter::GetScriptSettingsIdentifier()
-	{
-		return inline_string_encode(GetName());
-	}
-
-	wxWindow* ExportFilter::GetConfigDialogWindow(wxWindow *parent, agi::Context *c) {
-		config_dialog = GenerateConfigDialog(parent, c);
-
-		if (config_dialog) {
-			std::string const& val = c->ass->Properties.automation_settings[GetScriptSettingsIdentifier()];
-			if (!val.empty())
-				config_dialog->Unserialise(val);
-			return config_dialog->CreateWindow(parent);
-		}
-
-		return nullptr;
-	}
-
-	void ExportFilter::LoadSettings(bool is_default, agi::Context *c) {
-		if (config_dialog)
-			c->ass->Properties.automation_settings[GetScriptSettingsIdentifier()] = config_dialog->Serialise();
-	}
-
-	// ProgressSink
-	ProgressSink::ProgressSink(agi::ProgressSink *impl, BackgroundScriptRunner *bsr)
-	: impl(impl)
-	, bsr(bsr)
-	, trace_level(OPT_GET("Automation/Trace Level")->GetInt())
-	{
-	}
-
-	void ProgressSink::ShowDialog(ScriptDialog *config_dialog)
-	{
-		agi::dispatch::Main().Sync([=] {
-			wxDialog w; // container dialog box
-			w.SetExtraStyle(wxWS_EX_VALIDATE_RECURSIVELY);
-			w.Create(bsr->GetParentWindow(), -1, to_wx(bsr->GetTitle()));
-			auto s = new wxBoxSizer(wxHORIZONTAL); // sizer for putting contents in
-			wxWindow *ww = config_dialog->CreateWindow(&w); // generate actual dialog contents
-			s->Add(ww, 0, wxALL, 5); // add contents to dialog
-			w.SetSizerAndFit(s);
-			w.CenterOnParent();
-			w.ShowModal();
-		});
-	}
-
-	int ProgressSink::ShowDialog(wxDialog *dialog)
-	{
-		int ret = 0;
-		agi::dispatch::Main().Sync([&] { ret = dialog->ShowModal(); });
-		return ret;
-	}
-
-	BackgroundScriptRunner::BackgroundScriptRunner(wxWindow *parent, std::string const& title)
-	: impl(new DialogProgress(parent, to_wx(title)))
-	{
-	}
-
-	BackgroundScriptRunner::~BackgroundScriptRunner()
-	{
-	}
-
-	void BackgroundScriptRunner::Run(std::function<void (ProgressSink*)> task)
-	{
-		impl->Run([&](agi::ProgressSink *ps) {
-			ProgressSink aps(ps, this);
-			task(&aps);
-		});
-	}
-
-	wxWindow *BackgroundScriptRunner::GetParentWindow() const
-	{
-		return impl.get();
-	}
-
-	std::string BackgroundScriptRunner::GetTitle() const
-	{
-		return from_wx(impl->GetTitle());
 	}
 
 	// Script
@@ -342,10 +256,10 @@ namespace Automation4 {
 		}
 
 		if (error_count == 1) {
-			wxLogWarning("A script in the Automation autoload directory failed to load.\nPlease review the errors, fix them and use the Rescan Autoload Dir button in Automation Manager to load the scripts again.");
+			LOG_W("agi/auto4_base") << ("A script in the Automation autoload directory failed to load.\nPlease review the errors, fix them and use the Rescan Autoload Dir button in Automation Manager to load the scripts again.");
 		}
 		else if (error_count > 1) {
-			wxLogWarning("Multiple scripts in the Automation autoload directory failed to load.\nPlease review the errors, fix them and use the Rescan Autoload Dir button in Automation Manager to load the scripts again.");
+			LOG_W("agi/auto4_base") << ("Multiple scripts in the Automation autoload directory failed to load.\nPlease review the errors, fix them and use the Rescan Autoload Dir button in Automation Manager to load the scripts again.");
 		}
 
 		ScriptsChanged();
@@ -385,16 +299,14 @@ namespace Automation4 {
 				basepath = autobasefn;
 			} else if (first_char == '/') {
 			} else {
-				wxLogWarning("Automation Script referenced with unknown location specifier character.\nLocation specifier found: %c\nFilename specified: %s",
-					first_char, to_wx(trimmed));
+				LOG_W("agi/auto4_base") << "Automation Script referenced with unknown location specifier character.\nLocation specifier found: " << first_char << "\nFilename specified: " << trimmed;
 				continue;
 			}
 			auto sfname = basepath/trimmed;
 			if (agi::fs::FileExists(sfname))
 				scripts.emplace_back(Automation4::ScriptFactory::CreateFromFile(sfname, true));
 			else {
-				wxLogWarning("Automation Script referenced could not be found.\nFilename specified: %c%s\nSearched relative to: %s\nResolved filename: %s",
-					first_char, to_wx(trimmed), basepath.wstring(), sfname.wstring());
+				LOG_W("agi/auto4_base") << "Automation Script referenced could not be found.\nFilename specified: " << first_char << trimmed << "\nSearched relative to: " << basepath << "\nResolved filename: " << sfname;
 			}
 		}
 
@@ -454,14 +366,14 @@ namespace Automation4 {
 			auto s = factory->Produce(filename);
 			if (s) {
 				if (!s->GetLoadedState()) {
-					wxLogError(_("Failed to load Automation script '%s':\n%s"), filename.wstring(), s->GetDescription());
+					LOG_E("agi/auto4_base") << "Failed to load Automation script '" << filename << "':\n" << s->GetDescription();
 				}
 				return s;
 			}
 		}
 
 		if (complain_about_unrecognised) {
-			wxLogError(_("The file was not recognised as an Automation script: %s"), filename.wstring());
+			LOG_E("agi/auto4_base") << "The file was not recognised as an Automation script: " << filename;
 		}
 
 		return create_unknown ? agi::make_unique<UnknownScript>(filename) : nullptr;
@@ -490,18 +402,18 @@ namespace Automation4 {
 			fnfilter += agi::format("%s scripts (%s)|%s|", fact->GetEngineName(), fact->GetFilenamePattern(), filter);
 			catchall += filter + ";";
 		}
-		fnfilter += from_wx(_("All Files")) + " (*.*)|*.*";
+		fnfilter += "All Files (*.*)|*.*";
 
 		if (!catchall.empty())
 			catchall.pop_back();
 
 		if (Factories().size() > 1)
-			fnfilter = from_wx(_("All Supported Formats")) + "|" + catchall + "|" + fnfilter;
+			fnfilter = "All Supported Formats|" + catchall + "|" + fnfilter;
 
 		return fnfilter;
 	}
 
 	std::string UnknownScript::GetDescription() const {
-		return from_wx(_("File was not recognized as a script"));
+		return "File was not recognized as a script";
 	}
 }

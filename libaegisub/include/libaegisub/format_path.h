@@ -14,6 +14,7 @@
 //
 // Aegisub Project http://www.aegisub.org/
 
+#include <libaegisub/format.h>
 #include <libaegisub/fs_fwd.h>
 
 #include <boost/filesystem/path.hpp>

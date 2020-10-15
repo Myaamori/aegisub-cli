@@ -18,3 +18,7 @@ subprojects/libass
 subprojects/libpng*
 subprojects/packagecache
 subprojects/zlib*
+
+*.ass
+*.kdev4
+builddir/

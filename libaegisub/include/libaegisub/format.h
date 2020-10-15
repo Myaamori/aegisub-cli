@@ -20,8 +20,6 @@
 #include <boost/io/ios_state.hpp>
 #include <type_traits>
 
-class wxString;
-
 extern template class boost::interprocess::basic_vectorstream<std::string>;
 extern template class boost::interprocess::basic_vectorstream<std::wstring>;
 extern template class boost::interprocess::basic_vectorbuf<std::string>;
@@ -69,8 +67,6 @@ struct writer<StreamChar, std::basic_string<Char>> {
 // Ensure things with specializations don't get implicitly initialized
 template<> struct writer<char, agi::fs::path>;
 template<> struct writer<wchar_t, agi::fs::path>;
-template<> struct writer<char, wxString>;
-template<> struct writer<wchar_t, wxString>;
 
 namespace format_detail {
 template<typename Char>

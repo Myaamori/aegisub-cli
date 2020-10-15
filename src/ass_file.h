@@ -27,6 +27,9 @@
 //
 // Aegisub Project http://www.aegisub.org/
 
+#ifndef ASS_FILE_H_INCLUDED
+#define ASS_FILE_H_INCLUDED
+
 #include "ass_entry.h"
 
 #include <libaegisub/fs_fwd.h>
@@ -41,7 +44,6 @@ class AssAttachment;
 class AssDialogue;
 class AssInfo;
 class AssStyle;
-class wxString;
 
 template<typename T>
 using EntryList = typename boost::intrusive::make_list<T, boost::intrusive::constant_time_size<false>, boost::intrusive::base_hook<AssEntryListHook>>::type;
@@ -53,7 +55,6 @@ struct ExtradataEntry {
 };
 
 struct AssFileCommit {
-	wxString const& message;
 	int *commit_id;
 	AssDialogue *single_line;
 };
@@ -81,7 +82,6 @@ struct ProjectProperties {
 class AssFile {
 	/// A set of changes has been committed to the file (AssFile::COMMITType)
 	agi::signal::Signal<int, const AssDialogue*> AnnounceCommit;
-	agi::signal::Signal<AssFileCommit> PushState;
 public:
 	/// The lines in the file
 	std::vector<AssInfo> Info;
@@ -102,8 +102,7 @@ public:
 
 	/// @brief Load default file
 	/// @param defline Add a blank line to the file
-	/// @param style_catalog Style catalog name to fill styles from, blank to use default style
-	void LoadDefault(bool defline = true, std::string const& style_catalog = std::string());
+	void LoadDefault(bool defline = true);
 	/// Attach a file to the ass file
 	void InsertAttachment(agi::fs::path const& filename);
 	/// Get the names of all of the styles available
@@ -169,7 +168,6 @@ public:
 	};
 
 	DEFINE_SIGNAL_ADDERS(AnnounceCommit, AddCommitListener)
-	DEFINE_SIGNAL_ADDERS(PushState, AddUndoManager)
 
 	/// @brief Flag the file as modified and push a copy onto the undo stack
 	/// @param desc        Undo description
@@ -177,7 +175,7 @@ public:
 	/// @param commitId    Commit to amend rather than pushing a new commit
 	/// @param single_line Line which was changed, if only one line was
 	/// @return Unique identifier for the new undo group
-	int Commit(wxString const& desc, int type, int commitId = -1, AssDialogue *single_line = nullptr);
+	int Commit(int type, int commitId = -1, AssDialogue *single_line = nullptr);
 
 	/// Comparison function for use when sorting
 	typedef bool (*CompFunc)(AssDialogue const& lft, AssDialogue const& rgt);
@@ -204,3 +202,5 @@ public:
 	/// @param limit If non-empty, only lines in this set are sorted
 	static void Sort(EntryList<AssDialogue>& lst, CompFunc comp = CompStart, std::set<AssDialogue*> const& limit = std::set<AssDialogue*>());
 };
+
+#endif // ASS_FILE_H_INCLUDED

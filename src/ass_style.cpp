@@ -42,7 +42,6 @@
 
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/lexical_cast.hpp>
-#include <wx/intl.h>
 
 AssStyle::AssStyle() {
 	std::fill(Margin.begin(), Margin.end(), 10);
@@ -188,29 +187,6 @@ void AssStyle::UpdateData() {
 		scalex, scaley, spacing, angle,
 		borderstyle, outline_w, shadow_w, alignment,
 		Margin[0], Margin[1], Margin[2], encoding);
-}
-
-void AssStyle::GetEncodings(wxArrayString &encodingStrings) {
-	encodingStrings.Clear();
-	encodingStrings.Add(wxString("0 - ") + _("ANSI"));
-	encodingStrings.Add(wxString("1 - ") + _("Default"));
-	encodingStrings.Add(wxString("2 - ") + _("Symbol"));
-	encodingStrings.Add(wxString("77 - ") + _("Mac"));
-	encodingStrings.Add(wxString("128 - ") + _("Shift_JIS"));
-	encodingStrings.Add(wxString("129 - ") + _("Hangeul"));
-	encodingStrings.Add(wxString("130 - ") + _("Johab"));
-	encodingStrings.Add(wxString("134 - ") + _("GB2312"));
-	encodingStrings.Add(wxString("136 - ") + _("Chinese BIG5"));
-	encodingStrings.Add(wxString("161 - ") + _("Greek"));
-	encodingStrings.Add(wxString("162 - ") + _("Turkish"));
-	encodingStrings.Add(wxString("163 - ") + _("Vietnamese"));
-	encodingStrings.Add(wxString("177 - ") + _("Hebrew"));
-	encodingStrings.Add(wxString("178 - ") + _("Arabic"));
-	encodingStrings.Add(wxString("186 - ") + _("Baltic"));
-	encodingStrings.Add(wxString("204 - ") + _("Russian"));
-	encodingStrings.Add(wxString("222 - ") + _("Thai"));
-	encodingStrings.Add(wxString("238 - ") + _("East European"));
-	encodingStrings.Add(wxString("255 - ") + _("OEM"));
 }
 
 int AssStyle::AssToSsa(int ass_align) {

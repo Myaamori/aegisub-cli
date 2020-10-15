@@ -39,16 +39,12 @@
 #include <libaegisub/fs_fwd.h>
 #include <libaegisub/signal.h>
 
-#include "ass_export_filter.h"
-
 #include <boost/filesystem/path.hpp>
 #include <memory>
 #include <vector>
 
+class AssFile;
 class AssStyle;
-class DialogProgress;
-class wxWindow;
-class wxDialog;
 
 namespace agi { struct Context; }
 namespace cmd { class Command; }
@@ -63,33 +59,12 @@ namespace Automation4 {
 
 	class ScriptDialog;
 
-	class ExportFilter : public AssExportFilter {
-		std::unique_ptr<ScriptDialog> config_dialog;
-
-		/// subclasses should implement this, producing a new ScriptDialog
-		virtual std::unique_ptr<ScriptDialog> GenerateConfigDialog(wxWindow *parent, agi::Context *c) = 0;
-
-	protected:
-		std::string GetScriptSettingsIdentifier();
-
-	public:
-		ExportFilter(std::string const& name, std::string const& description, int priority);
-
-		wxWindow* GetConfigDialogWindow(wxWindow *parent, agi::Context *c) override;
-		void LoadSettings(bool is_default, agi::Context *c) override;
-
-		// Subclasses must implement ProcessSubs from AssExportFilter
-	};
-
 	/// A "dialog" which actually generates a non-top-level window that is then
 	/// either inserted into a dialog or into the export filter configuration
 	/// panel
 	class ScriptDialog {
 	public:
 		virtual ~ScriptDialog() = default;
-
-		/// Create a window with the given parent
-		virtual wxWindow *CreateWindow(wxWindow *parent) = 0;
 
 		/// Serialize the values of the controls in this dialog to a string
 		/// suitable for storage in the subtitle script
@@ -98,47 +73,6 @@ namespace Automation4 {
 		/// Restore the values of the controls in this dialog from a string
 		/// stored in the subtitle script
 		virtual void Unserialise(std::string const& serialised) { }
-	};
-
-	class ProgressSink;
-
-	class BackgroundScriptRunner {
-		std::unique_ptr<DialogProgress> impl;
-
-	public:
-		wxWindow *GetParentWindow() const;
-		std::string GetTitle() const;
-
-		void Run(std::function<void(ProgressSink*)> task);
-
-		BackgroundScriptRunner(wxWindow *parent, std::string const& title);
-		~BackgroundScriptRunner();
-	};
-
-	/// A wrapper around agi::ProgressSink which adds the ability to open
-	/// dialogs on the GUI thread
-	class ProgressSink final : public agi::ProgressSink {
-		agi::ProgressSink *impl;
-		BackgroundScriptRunner *bsr;
-		int trace_level;
-	public:
-		void SetIndeterminate() override { impl->SetIndeterminate(); }
-		void SetTitle(std::string const& title) override { impl->SetTitle(title); }
-		void SetMessage(std::string const& msg) override { impl->SetMessage(msg); }
-		void SetProgress(int64_t cur, int64_t max) override { impl->SetProgress(cur, max); }
-		void Log(std::string const& str) override { impl->Log(str); }
-		bool IsCancelled() override { return impl->IsCancelled(); }
-
-		/// Show the passed dialog on the GUI thread, blocking the calling
-		/// thread until it closes
-		void ShowDialog(ScriptDialog *config_dialog);
-		int ShowDialog(wxDialog *dialog);
-		wxWindow *GetParentWindow() const { return bsr->GetParentWindow(); }
-
-		/// Get the current automation trace level
-		int GetTraceLevel() const { return trace_level; }
-
-		ProgressSink(agi::ProgressSink *impl, BackgroundScriptRunner *bsr);
 	};
 
 	class Script {
@@ -173,8 +107,6 @@ namespace Automation4 {
 
 		/// Get a list of commands provided by this script
 		virtual std::vector<cmd::Command*> GetMacros() const=0;
-		/// Get a list of export filters provided by this script
-		virtual std::vector<ExportFilter*> GetFilters() const=0;
 	};
 
 	/// A manager of loaded automation scripts
@@ -286,6 +218,5 @@ namespace Automation4 {
 		bool GetLoadedState() const override { return false; }
 
 		std::vector<cmd::Command*> GetMacros() const override { return {}; }
-		std::vector<ExportFilter*> GetFilters() const override { return {}; }
 	};
 }

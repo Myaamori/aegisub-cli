@@ -20,7 +20,6 @@
 #include "ass_dialogue.h"
 #include "ass_info.h"
 #include "ass_style.h"
-#include "ass_style_storage.h"
 #include "options.h"
 
 #include <algorithm>
@@ -38,7 +37,7 @@ AssFile::~AssFile() {
 	Events.clear_and_dispose([](AssDialogue *e) { delete e; });
 }
 
-void AssFile::LoadDefault(bool include_dialogue_line, std::string const& style_catalog) {
+void AssFile::LoadDefault(bool include_dialogue_line) {
 	Info.emplace_back("Title", "Default Aegisub file");
 	Info.emplace_back("ScriptType", "v4.00+");
 	Info.emplace_back("WrapStyle", "0");
@@ -51,13 +50,6 @@ void AssFile::LoadDefault(bool include_dialogue_line, std::string const& style_c
 
 	// Add default style
 	Styles.push_back(*new AssStyle);
-
-	// Add/replace any catalog styles requested
-	if (AssStyleStorage::CatalogExists(style_catalog)) {
-		AssStyleStorage catalog;
-		catalog.LoadCatalog(style_catalog);
-		catalog.ReplaceIntoFile(*this);
-	}
 
 	if (include_dialogue_line)
 		Events.push_back(*new AssDialogue);
@@ -168,14 +160,12 @@ AssStyle *AssFile::GetStyle(std::string const& name) {
 	return nullptr;
 }
 
-int AssFile::Commit(wxString const& desc, int type, int amend_id, AssDialogue *single_line) {
+int AssFile::Commit(int type, int amend_id, AssDialogue *single_line) {
 	if (type == COMMIT_NEW || (type & COMMIT_DIAG_ADDREM) || (type & COMMIT_ORDER)) {
 		int i = 0;
 		for (auto& event : Events)
 			event.Row = i++;
 	}
-
-	PushState({desc, &amend_id, single_line});
 
 	AnnounceCommit(type, single_line);
 
