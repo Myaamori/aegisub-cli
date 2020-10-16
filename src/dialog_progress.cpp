@@ -46,10 +46,10 @@ public:
 	}
 
 	void SetProgress(int64_t cur, int64_t max) override {
-		int new_progress = mid<int>(0, double(cur) / max * 300, 300);
+		int new_progress = mid<int>(0, double(cur) / max * 20, 20);
 		if (new_progress != progress) {
 			progress = new_progress;
-			LOG_I("agi/dialog_progress") << "Progress: " << new_progress / 3 << "%";
+			LOG_I("agi/dialog_progress") << "Progress: " << new_progress * 5 << "%";
 		}
 	}
 

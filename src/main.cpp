@@ -379,7 +379,7 @@ int main(int argc, char **argv) {
 		auto cwd = boost::filesystem::current_path();
 
 		auto script = find_script(vm["script"].as<std::string>());
-		if (script == nullptr) {
+		if (!script) {
 			return 1;
 		}
 
