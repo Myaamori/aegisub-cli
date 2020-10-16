@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
 	try {
 		auto conf_local(config::path->Decode("?data/config.json"));
 		std::unique_ptr<std::istream> localConfig(agi::io::Open(conf_local));
-		config::opt = new agi::Options(conf_local, GET_DEFAULT_CONFIG(default_config));
+		config::opt = new agi::Options(conf_local, GET_DEFAULT_CONFIG(default_config), agi::Options::FLUSH_SKIP);
 
 		// Local config, make ?user mean ?data so all user settings are placed in install dir
 		config::path->SetToken("?user", config::path->Decode("?data"));
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
 	StartupLog("Load user configuration");
 	try {
 		if (!config::opt)
-			config::opt = new agi::Options(config::path->Decode("?user/config.json"), GET_DEFAULT_CONFIG(default_config));
+			config::opt = new agi::Options(config::path->Decode("?user/config.json"), GET_DEFAULT_CONFIG(default_config), agi::Options::FLUSH_SKIP);
 		boost::interprocess::ibufferstream stream((const char *)default_config_platform, sizeof(default_config_platform));
 		config::opt->ConfigNext(stream);
 	} catch (agi::Exception& e) {
