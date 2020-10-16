@@ -78,7 +78,6 @@ namespace config {
 	agi::Options *opt = nullptr;
 	agi::MRUManager *mru = nullptr;
 	agi::Path *path = nullptr;
-	Automation4::AutoloadScriptManager *global_scripts;
 }
 
 std::set<int> parse_range(const std::string& s) {
@@ -112,6 +111,38 @@ std::set<int> parse_range(const std::string& s) {
 	return lines;
 }
 
+std::unique_ptr<Automation4::Script> find_script(const std::string& file)
+{
+	auto absolute = agi::fs::path(file);
+	auto relative = boost::filesystem::current_path() / file;
+
+	agi::fs::path script;
+
+	if (agi::fs::FileExists(absolute)) {
+		script = absolute;
+	} else if (agi::fs::FileExists(relative)) {
+		script = relative;
+	} else {
+		auto autodirs = OPT_GET("Path/Automation/Autoload")->GetString();
+
+		for (auto tok : agi::Split(autodirs, '|')) {
+			auto dirname = config::path->Decode(agi::str(tok));
+			if (!agi::fs::DirectoryExists(dirname)) continue;
+
+			auto scriptname = dirname / file;
+			if (agi::fs::FileExists(scriptname)) {
+				script = scriptname;
+			}
+		}
+	}
+
+	if (script.empty()) {
+		throw agi::InvalidInputException("Could not find script file: " + file);
+	}
+
+	return Automation4::ScriptFactory::CreateFromFile(script, true, false);
+}
+
 int main(int argc, char **argv) {
 	boost::program_options::options_description cmdline("Options");
 	boost::program_options::options_description flags("Options");
@@ -120,6 +151,7 @@ int main(int argc, char **argv) {
 	cmdline.add_options()
 		("in-file", boost::program_options::value<std::string>(), "input file")
 		("out-file", boost::program_options::value<std::string>(), "output file")
+		("script", boost::program_options::value<std::string>(), "script file")
 		("macro", boost::program_options::value<std::string>(), "macro to run")
 	;
 
@@ -135,6 +167,7 @@ int main(int argc, char **argv) {
 	cmdline.add(flags);
 	posdesc.add("in-file", 1);
 	posdesc.add("out-file", 1);
+	posdesc.add("script", 1);
 	posdesc.add("macro", 1);
 	boost::program_options::variables_map vm;
 	boost::program_options::store(
@@ -146,7 +179,7 @@ int main(int argc, char **argv) {
 		if (!vm.count("macro")) {
 			std::cout << "Too few arguments." << std::endl;
 		}
-		std::cout << argv[0] << " [options] <in-file> <out-file> <macro>" << std::endl;
+		std::cout << argv[0] << " [options] <input file> <output file> <script file> <macro>" << std::endl;
 		std::cout << flags << std::endl;
 		return 1;
 	}
@@ -282,7 +315,13 @@ int main(int argc, char **argv) {
 
 		// Load Automation scripts
 		StartupLog("Load global Automation scripts");
-		config::global_scripts = new Automation4::AutoloadScriptManager(OPT_GET("Path/Automation/Autoload")->GetString());
+		//config::global_scripts = new Automation4::ScriptManager;
+		//config::global_scripts = new Automation4::AutoloadScriptManager();
+
+		auto script = find_script(vm["script"].as<std::string>());
+		if (script == nullptr) {
+			return 1;
+		}
 
 		auto context = agi::make_unique<agi::Context>();
 
@@ -369,7 +408,6 @@ int main(int argc, char **argv) {
 	delete config::opt;
 	delete config::mru;
 	cmd::clear();
-	delete config::global_scripts;
 	delete agi::log::log;
 	
 #ifndef WIN32

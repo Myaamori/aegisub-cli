@@ -28,7 +28,6 @@ namespace config {
 	extern agi::Options *opt;    ///< Options
 	extern agi::MRUManager *mru; ///< Most Recently Used
 	extern agi::Path *path;
-	extern Automation4::AutoloadScriptManager *global_scripts;
 }
 
 /// Macro to get OptionValue object
