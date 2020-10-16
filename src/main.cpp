@@ -283,7 +283,6 @@ int main(int argc, char **argv) {
 	AegisubLocale locale;
 	StartupLog("Inside OnInit");
 	
-	StartupLog("CWD: ") << boost::filesystem::current_path();
 	try {
 		// Initialize randomizer
 		StartupLog("Initialize random generator");
@@ -309,22 +308,11 @@ int main(int argc, char **argv) {
 		// locale and add .UTF-8 to that, but :effort:
 		setlocale(LC_CTYPE, "en_US.UTF-8");
 #endif
-		
-		// Load plugins
-		Automation4::ScriptFactory::Register(agi::make_unique<Automation4::LuaScriptFactory>());
-
-		// Load Automation scripts
-		StartupLog("Load global Automation scripts");
-		//config::global_scripts = new Automation4::ScriptManager;
-		//config::global_scripts = new Automation4::AutoloadScriptManager();
-
-		auto script = find_script(vm["script"].as<std::string>());
-		if (script == nullptr) {
-			return 1;
-		}
 
 		auto context = agi::make_unique<agi::Context>();
 
+		// make sure to load files before loading automation,
+		// since automations can change the cwd
 		StartupLog("Loading subtitles...");
 		if (!context->project->LoadSubtitles(vm["in-file"].as<std::string>())) {
 			return 2;
@@ -382,10 +370,25 @@ int main(int argc, char **argv) {
 		context->selectionController->SetSelectionAndActive(
 			std::move(selected_lines), active_line);
 
+		// Load plugins
+		Automation4::ScriptFactory::Register(agi::make_unique<Automation4::LuaScriptFactory>());
+
+		// Load Automation scripts
+		StartupLog("Load automation script");
+		// cache cwd in case automation changes it
+		auto cwd = boost::filesystem::current_path();
+
+		auto script = find_script(vm["script"].as<std::string>());
+		if (script == nullptr) {
+			return 1;
+		}
+
 		auto macro = vm["macro"].as<std::string>();
 		StartupLog("Calling: ") << macro;
 		cmd::call(macro, context.get());
 
+		// restore cwd for saving
+		boost::filesystem::current_path(cwd);
 		context->subsController->Save(vm["out-file"].as<std::string>());
 	}
 	catch (agi::Exception const& e) {
