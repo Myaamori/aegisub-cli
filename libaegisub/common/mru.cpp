@@ -120,7 +120,7 @@ void MRUManager::Flush() {
 			array.push_back(p.string());
 	}
 
-	agi::JsonWriter::Write(out, io::Save(config_name).Get());
+	//agi::JsonWriter::Write(out, io::Save(config_name).Get());
 }
 
 void MRUManager::Prune(const char *key, MRUListMap& map) const {
