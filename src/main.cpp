@@ -515,7 +515,10 @@ int main(int argc, char **argv) {
 
 		auto macro = vm["macro"].as<std::string>();
 		StartupLog("Calling: ") << macro;
-		cmd::call(macro, context.get());
+		if (!cmd::call(macro, context.get())) {
+			StartupError("Skipping automation because validation function returned false");
+			return 1;
+		}
 
 		// restore cwd for saving
 		boost::filesystem::current_path(cwd);

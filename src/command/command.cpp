@@ -40,10 +40,15 @@ namespace cmd {
 		return find_command(name)->second.get();
 	}
 
-	void call(std::string const& name, agi::Context*c) {
+	bool call(std::string const& name, agi::Context*c) {
 		Command &cmd = *find_command(name)->second;
-		if (cmd.Validate(c))
+		if (cmd.Validate(c)) {
 			cmd(c);
+			return true;
+		}
+		else {
+			return false;
+		}
 	}
 
 	std::vector<std::string> get_registered_commands() {

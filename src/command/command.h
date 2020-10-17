@@ -122,7 +122,7 @@ DEFINE_EXCEPTION(CommandNotFound, CommandError);
 	/// Call a command.
 	/// @param name Name of the command to call.
 	/// @param c  Current Context.
-	void call(std::string const& name, agi::Context *c);
+	bool call(std::string const& name, agi::Context *c);
 
 	/// Retrieve a Command object.
 	/// @param Command object.
