@@ -314,27 +314,31 @@ int main(int argc, char **argv) {
 		// make sure to load files before loading automation,
 		// since automations can change the cwd
 		StartupLog("Loading subtitles...");
-		if (!context->project->LoadSubtitles(vm["in-file"].as<std::string>())) {
+		if (!context->project->LoadSubtitles(
+				boost::filesystem::absolute(vm["in-file"].as<std::string>()))) {
 			return 2;
 		}
 
 		if (vm.count("video")) {
 			StartupLog("Loading video...");
-			if (!context->project->LoadVideo(vm["video"].as<std::string>())) {
+			if (!context->project->LoadVideo(
+					boost::filesystem::absolute(vm["video"].as<std::string>()))) {
 				return 2;
 			}
 		}
 
 		if (vm.count("timecodes")) {
 			StartupLog("Loading timecodes...");
-			if (!context->project->LoadTimecodes(vm["timecodes"].as<std::string>())) {
+			if (!context->project->LoadTimecodes(
+					boost::filesystem::absolute(vm["timecodes"].as<std::string>()))) {
 				return 2;
 			}
 		}
 
 		if (vm.count("keyframes")) {
 			StartupLog("Loading keyframes...");
-			if (!context->project->LoadKeyframes(vm["keyframes"].as<std::string>())) {
+			if (!context->project->LoadKeyframes(
+					boost::filesystem::absolute(vm["keyframes"].as<std::string>()))) {
 				return 2;
 			}
 		}
