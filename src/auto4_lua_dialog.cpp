@@ -370,15 +370,29 @@ namespace Automation4 {
 				btn->first = id;
 			});
 		}
+
+		if (buttons.empty()) {
+			buttons.emplace_back(BTN_OK, "OK");
+			buttons.emplace_back(BTN_CANCEL, "Cancel");
+		}
+
+		for (int i = 0; i < buttons.size(); i++) {
+			LOG_D("automation/lua/dialog") << "created button: " << buttons[i].second << " (" << i << ")";
+		}
 	}
 
 	int LuaDialog::LuaReadBack(lua_State *L) {
 		// First read back which button was pressed, if any
 		if (use_buttons) {
-			if (button_pushed == -1 || buttons[button_pushed].first == BTN_CANCEL)
+			if (button_pushed == -1 || buttons[button_pushed].first == BTN_CANCEL) {
+				LOG_I("agi/auto4_lua_dialog") << "Pushing cancel";
 				lua_pushboolean(L, false);
-			else
-				lua_pushstring(L, buttons[button_pushed].second.c_str());
+			}
+			else {
+				const char* s = buttons[button_pushed].second.c_str();
+				LOG_I("agi/auto4_lua_dialog") << "Pushing " << s;
+				lua_pushstring(L, s);
+			}
 		}
 
 		// Then read controls back
@@ -389,6 +403,15 @@ namespace Automation4 {
 		}
 
 		return use_buttons ? 2 : 1;
+	}
+
+	void LuaDialog::PushButton(int button) {
+		if (button != -1 && (button < 0 || button >= buttons.size())) {
+			LOG_E("agi/auto4_lua_dialog") << "Button " << button << " not in range; defaulting to cancel";
+			button = -1;
+		}
+
+		button_pushed = button;
 	}
 
 	std::string LuaDialog::Serialise() {

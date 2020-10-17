@@ -54,6 +54,7 @@
 #include <libaegisub/format_path.h>
 #include <libaegisub/fs.h>
 #include <libaegisub/io.h>
+#include <libaegisub/json.h>
 #include <libaegisub/log.h>
 #include <libaegisub/make_unique.h>
 #include <libaegisub/option.h>
@@ -70,6 +71,7 @@
 #include <boost/locale.hpp>
 #include <boost/program_options.hpp>
 #include <locale>
+#include "string_codec.h"
 
 #define StartupLog(a) LOG_I("main") << a
 #define StartupError(a) LOG_E("main") << a
@@ -78,6 +80,8 @@ namespace config {
 	agi::Options *opt = nullptr;
 	agi::MRUManager *mru = nullptr;
 	agi::Path *path = nullptr;
+	std::list<std::pair<int, std::string>> *dialog_responses;
+	std::list<std::vector<agi::fs::path>> *file_responses;
 }
 
 std::set<int> parse_range(const std::string& s) {
@@ -143,6 +147,102 @@ std::unique_ptr<Automation4::Script> find_script(const std::string& file)
 	return Automation4::ScriptFactory::CreateFromFile(script, true, false);
 }
 
+std::string serialize_element(const json::UnknownElement& elem) {
+	try {
+		auto& val_str = static_cast<json::String const&>(elem);
+		return inline_string_encode(val_str);
+	}
+	catch (json::Exception const& e) {}
+
+	try {
+		auto& val_int = static_cast<json::Integer const&>(elem);
+		return std::to_string(val_int);
+	}
+	catch (json::Exception const& e) {}
+
+	try {
+		auto& val_double = static_cast<json::Double const&>(elem);
+		return std::to_string(val_double);
+	}
+	catch (json::Exception const& e) {}
+
+	try {
+		auto& val_bool = static_cast<json::Boolean const&>(elem);
+		return val_bool ? "1" : "0";
+	} catch (json::Exception const& e) {}
+
+	auto& val_array = static_cast<json::Array const&>(elem);
+	if (val_array.size() != 3 && val_array.size() != 4) {
+		StartupError("Wrong array length for color");
+		throw json::Exception("Wrong array length for color");
+	}
+
+	agi::Color color;
+	for (int i = 0; i < val_array.size(); i++) {
+		int arrelem_int = static_cast<json::Integer const&>(val_array[i]);
+		if (arrelem_int < 0 || arrelem_int >= 256) {
+			StartupError("Color part not within [0,255] bounds");
+			throw json::Exception("Color part not within [0,255] bounds");
+		}
+
+		switch (i) {
+			case 0: color.r = arrelem_int; break;
+			case 1: color.g = arrelem_int; break;
+			case 2: color.b = arrelem_int; break;
+			case 3: color.a = arrelem_int; break;
+		}
+	}
+	return color.GetHexFormatted(val_array.size() == 4);
+}
+
+std::pair<int, std::string> json_to_lua(const std::string& s) {
+	std::istringstream stream(s);
+	auto elem = agi::json_util::parse(stream);
+	auto& root = static_cast<json::Object const&>(elem);
+	auto button = root.find("button");
+	if (button == root.end()) {
+		throw agi::InvalidInputException("No button specified in JSON: " + s);
+	}
+
+	const json::Integer* button_num = nullptr;
+	try {
+		button_num = &static_cast<json::Integer const&>(button->second);
+	}
+	catch (json::Exception const& e) {
+		throw agi::InvalidInputException("'button' not an integer in JSON: " + s);
+	}
+
+	auto values = root.find("values");
+	if (values == root.end()) {
+		return std::make_pair(*button_num, "");
+	}
+
+	const json::Object* values_obj = nullptr;
+	try {
+		values_obj = &static_cast<json::Object const&>(values->second);
+	}
+	catch (json::Exception const& e) {
+		throw agi::InvalidInputException("'values' not an object in JSON: " + s);
+	}
+
+	std::string vals = "";
+	for (auto& p : *values_obj) {
+		if (!vals.empty()) {
+			vals += "|";
+		}
+
+		auto& key = p.first;
+		try {
+			vals += inline_string_encode(key) + ":" + serialize_element(p.second);
+		}
+		catch (json::Exception const& e) {
+			throw agi::InvalidInputException(agi::format("Could not serialize 'values.%s' in JSON: %s", key, s));
+		}
+	}
+
+	return std::make_pair(*button_num, vals);
+}
+
 int main(int argc, char **argv) {
 	boost::program_options::options_description cmdline("Options");
 	boost::program_options::options_description flags("Options");
@@ -162,6 +262,8 @@ int main(int argc, char **argv) {
 		("keyframes", boost::program_options::value<std::string>(), "keyframes to load")
 		("active-line", boost::program_options::value<int>()->default_value(-1), "the active line")
 		("selected-lines", boost::program_options::value<std::string>()->default_value(""), "the selected lines")
+		("dialog", boost::program_options::value<std::vector<std::string>>(), "response to a dialog, in JSON")
+		("file", boost::program_options::value<std::vector<std::string>>(), "filename to supply to an open/save call")
 	;
 
 	cmdline.add(flags);
@@ -220,6 +322,8 @@ int main(int argc, char **argv) {
 	});
 
 	config::path = new agi::Path;
+	config::dialog_responses = new std::list<std::pair<int, std::string>>;
+	config::file_responses = new std::list<std::vector<agi::fs::path>>;
 
 	agi::log::log = new agi::log::LogSink;
 	agi::log::log->Subscribe(agi::make_unique<agi::log::EmitSTDOUT>());
@@ -377,6 +481,28 @@ int main(int argc, char **argv) {
 		// Load plugins
 		Automation4::ScriptFactory::Register(agi::make_unique<Automation4::LuaScriptFactory>());
 
+		if (vm.count("dialog")) {
+			for (auto& s : vm["dialog"].as<std::vector<std::string>>()) {
+				auto pair = json_to_lua(s);
+				StartupLog(agi::format("Dialog response: button %d -> %s", pair.first, pair.second));
+				config::dialog_responses->push_back(std::move(pair));
+			}
+		}
+
+		if (vm.count("file")) {
+			for (auto& s : vm["file"].as<std::vector<std::string>>()) {
+				std::vector<agi::fs::path> paths;
+				std::stringstream ss;
+				for (const auto& tok : agi::Split(s, '|')) {
+					auto p = boost::filesystem::absolute(agi::str(tok));
+					ss << p << " ";
+					paths.push_back(std::move(p));
+				}
+				StartupLog("File response: ") << ss.str();
+				config::file_responses->push_back(std::move(paths));
+			}
+		}
+
 		// Load Automation scripts
 		StartupLog("Load automation script");
 		// cache cwd in case automation changes it
@@ -414,6 +540,8 @@ int main(int argc, char **argv) {
 	
 	delete config::opt;
 	delete config::mru;
+	delete config::dialog_responses;
+	delete config::file_responses;
 	cmd::clear();
 	delete agi::log::log;
 	

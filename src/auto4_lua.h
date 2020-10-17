@@ -202,6 +202,8 @@ namespace Automation4 {
 		/// in a single table
 		int LuaReadBack(lua_State *L);
 
+		void PushButton(int button);
+
 		// ScriptDialog implementation
 		std::string Serialise() override;
 		void Unserialise(const std::string &serialised) override;

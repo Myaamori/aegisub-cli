@@ -34,6 +34,7 @@
 
 #include "auto4_lua.h"
 #include "stdio.h"
+#include "options.h"
 
 #include <libaegisub/log.h>
 #include <libaegisub/lua/utils.h>
@@ -183,7 +184,13 @@ namespace Automation4 {
 		agi::ProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 
 		LuaDialog dlg(L, true); // magically creates the config dialog structure etc
-		//ps->ShowDialog(&dlg);
+
+		if (config::dialog_responses->size() > 0) {
+			auto& pair = config::dialog_responses->front();
+			dlg.PushButton(pair.first);
+			dlg.Unserialise(pair.second);
+			config::dialog_responses->pop_front();
+		}
 
 		// more magic: puts two values on stack: button pushed and table with control results
 		return dlg.LuaReadBack(L);
@@ -200,21 +207,29 @@ namespace Automation4 {
 		bool must_exist = lua_toboolean(L, 6) || lua_isnil(L, 6);
 
 		LOG_I("agi/auto4_lua_progresssink") << "Open file: " << message << "|" << dir << "|" << file << "|" << wildcard;
-		lua_pushnil(L);
-		return 1;
 
-		/*if (multiple) {
-			lua_createtable(L, files.size(), 0);
-			for (size_t i = 0; i < files.size(); ++i) {
-				lua_pushstring(L, files[i].utf8_str());
-				lua_rawseti(L, -2, i + 1);
+		if (config::file_responses->size() > 0) {
+			auto& paths = config::file_responses->front();
+
+			if (multiple) {
+				lua_createtable(L, paths.size(), 0);
+				for (size_t i = 0; i < paths.size(); ++i) {
+					LOG_I("agi/auto4_lua_progresssink") << "Opening " << paths[i];
+					lua_pushstring(L, paths[i].c_str());
+					lua_rawseti(L, -2, i + 1);
+				}
+			} else {
+				LOG_I("agi/auto4_lua_progresssink") << "Opening " << paths[0];
+				lua_pushstring(L, paths[0].c_str());
 			}
 
+			config::file_responses->pop_front();
+			return 1;
+		} else {
+			LOG_I("agi/auto4_lua_progresssink") << "Canceling open dialog";
+			lua_pushnil(L);
 			return 1;
 		}
-
-		lua_pushstring(L, diag.GetPath().utf8_str());
-		return 1;*/
 	}
 
 	int LuaProgressSink::LuaDisplaySaveDialog(lua_State *L)
@@ -228,10 +243,16 @@ namespace Automation4 {
 		
 		LOG_I("agi/auto4_lua_progresssink") << "Save file: " << message << "|" << dir << "|" << file << "|" << wildcard;
 
-		lua_pushnil(L);
-		return 1;
-
-		/*lua_pushstring(L, diag.GetPath().utf8_str());
-		return 1;*/
+		if (config::file_responses->size() > 0) {
+			auto& paths = config::file_responses->front();
+			LOG_I("agi/auto4_lua_progresssink") << "Saving to " << paths[0];
+			lua_pushstring(L, paths[0].c_str());
+			config::file_responses->pop_front();
+			return 1;
+		} else {
+			LOG_I("agi/auto4_lua_progresssink") << "Canceling save dialog";
+			lua_pushnil(L);
+			return 1;
+		}
 	}
 }
