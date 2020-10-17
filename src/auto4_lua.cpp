@@ -74,7 +74,13 @@ using namespace Automation4;
 namespace {
 	std::string get_string(lua_State *L, int idx)
 	{
-		return std::string(lua_tostring(L, idx));
+		auto s = lua_tostring(L, idx);
+		if (s == nullptr) {
+			return "";
+		}
+		else {
+			return std::string(s);
+		}
 	}
 
 	void set_context(lua_State *L, const agi::Context *c)
