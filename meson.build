@@ -1,4 +1,4 @@
-project('Aegisub', ['c', 'cpp'],
+project('Aegisub-CLI', ['c', 'cpp'],
         license: 'BSD-3-Clause',
         meson_version: '>=0.50.0',
         # c_std=c11 should be here but it breaks Linux builds for some reason, needs investigation
@@ -143,8 +143,8 @@ subdir('subprojects/luabins/src')
 
 acconf = configure_file(output: 'acconf.h', configuration: conf)
 
-subdir('automation')
+if get_option('include_automations')
+    subdir('automation')
+endif
 subdir('libaegisub')
-#subdir('packages')
-#subdir('po')
 subdir('src')
