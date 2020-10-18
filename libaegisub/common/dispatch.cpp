@@ -18,17 +18,8 @@
 
 #include "libaegisub/util.h"
 
-#include <atomic>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/strand.hpp>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
-
 namespace {
-	boost::asio::io_service *service;
 	std::function<void (agi::dispatch::Thunk)> invoke_main;
-	std::atomic<uint_fast32_t> threads_running;
 
 	class MainQueue final : public agi::dispatch::Queue {
 		void DoInvoke(agi::dispatch::Thunk thunk) override {
@@ -39,56 +30,22 @@ namespace {
 	class BackgroundQueue final : public agi::dispatch::Queue {
 		void DoInvoke(agi::dispatch::Thunk thunk) override {
 			invoke_main(thunk);
-			//service->post(thunk);
 		}
 	};
 
 	class SerialQueue final : public agi::dispatch::Queue {
-		boost::asio::io_service::strand strand;
-
 		void DoInvoke(agi::dispatch::Thunk thunk) override {
-			strand.post(thunk);
+			thunk();
 		}
 	public:
-		SerialQueue() : strand(*service) { }
-	};
-
-	struct IOServiceThreadPool {
-		boost::asio::io_service io_service;
-		std::unique_ptr<boost::asio::io_service::work> work;
-		std::vector<std::thread> threads;
-
-		IOServiceThreadPool() : work(new boost::asio::io_service::work(io_service)) { }
-		~IOServiceThreadPool() {
-			work.reset();
-#ifndef _WIN32
-			for (auto& thread : threads) thread.join();
-#else
-			// Calling join() after main() returns deadlocks
-			// https://connect.microsoft.com/VisualStudio/feedback/details/747145
-			for (auto& thread : threads) thread.detach();
-			while (threads_running) std::this_thread::yield();
-#endif
-		}
+		SerialQueue() { }
 	};
 }
 
 namespace agi { namespace dispatch {
 
 void Init(std::function<void (Thunk)> invoke_main) {
-	static IOServiceThreadPool thread_pool;
-	::service = &thread_pool.io_service;
 	::invoke_main = invoke_main;
-
-	thread_pool.threads.reserve(std::max<unsigned>(4, std::thread::hardware_concurrency()));
-	for (size_t i = 0; i < thread_pool.threads.capacity(); ++i) {
-		thread_pool.threads.emplace_back([]{
-			++threads_running;
-			agi::util::SetThreadName("Dispatch Worker");
-			service->run();
-			--threads_running;
-		});
-	}
 }
 
 void Queue::Async(Thunk thunk) {
@@ -104,13 +61,9 @@ void Queue::Async(Thunk thunk) {
 }
 
 void Queue::Sync(Thunk thunk) {
-	std::mutex m;
-	std::condition_variable cv;
-	std::unique_lock<std::mutex> l(m);
 	std::exception_ptr e;
 	bool done = false;
 	DoInvoke([&]{
-		std::unique_lock<std::mutex> l(m);
 		try {
 			thunk();
 		}
@@ -118,9 +71,7 @@ void Queue::Sync(Thunk thunk) {
 			e = std::current_exception();
 		}
 		done = true;
-		cv.notify_all();
 	});
-	cv.wait(l, [&]{ return done; });
 	if (e) std::rethrow_exception(e);
 }
 

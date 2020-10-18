@@ -17,6 +17,7 @@ libaegisub_src = [
     'common/charset_conv.cpp',
     'common/charset.cpp',
     'common/color.cpp',
+    'common/dispatch.cpp',
     'common/file_mapping.cpp',
     'common/format.cpp',
     'common/fs.cpp',
@@ -52,12 +53,9 @@ libaegisub_src = [
 
 if host_machine.system() == 'darwin'
     libaegisub_src += [
-        'osx/dispatch.mm',
         'osx/spellchecker.mm',
         'osx/util.mm',
     ]
-else
-    libaegisub_src += 'common/dispatch.cpp'
 endif
 
 if host_machine.system() == 'windows'
