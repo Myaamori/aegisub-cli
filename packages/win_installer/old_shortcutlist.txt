@@ -1,3 +1,0 @@
-Aegisub.lnk
-ASSDraw3.lnk
-Uninstall.lnk
