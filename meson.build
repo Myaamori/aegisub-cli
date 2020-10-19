@@ -17,19 +17,7 @@ version_h = custom_target('git_version.h',
                           build_always_stale: true, # has internal check whether target file will be refreshed
                           output: ['git_version.h', 'git_version.xml'])
 
-if host_machine.system() == 'darwin' and get_option('build_osx_bundle')
-    prefix = meson.current_build_dir() / 'Aegisub.app' / 'Contents'
-    bindir = prefix / 'MacOS'
-    datadir = prefix / 'SharedSupport'
-    localedir = prefix / 'Resources'
-else
-    prefix = get_option('prefix')
-    bindir = prefix / get_option('bindir')
-    datadir = prefix / get_option('datadir')
-    localedir = prefix / get_option('localedir')
-endif
-docdir = prefix / 'doc'
-dataroot = datadir / 'aegisub'
+dataroot = get_option('prefix') / get_option('datadir') / 'aegisub'
 add_project_arguments('-DP_DATA="@0@"'.format(dataroot), language: 'cpp')
 
 if host_machine.system() == 'windows'
@@ -45,12 +33,14 @@ endif
 deps = []
 deps_inc = []
 
+conf.set('WITH_FONTCONFIG', '0')
 if host_machine.system() == 'darwin'
     add_languages('objc', 'objcpp')
     add_project_arguments('-DGL_SILENCE_DEPRECATION', language: 'cpp')
     # meson does not currently support objcpp_std
     add_project_arguments('-std=c++11', language: 'objcpp')
 elif host_machine.system() != 'windows'
+    conf.set('WITH_FONTCONFIG', '1')
     deps += dependency('fontconfig')
 endif
 
@@ -68,7 +58,12 @@ deps += iconv_dep
 
 deps += dependency('boost', version: '>=1.50.0',
                    modules: ['chrono', 'filesystem', 'locale', 'regex',
-                             'system', 'thread', 'program_options'])
+                             'system', 'thread', 'program_options'],
+                   static: get_option('default_library') == 'static')
+if host_machine.system() == 'windows'
+    conf.set('BOOST_USE_WINDOWS_H', '1')
+endif
+
 deps += dependency('zlib', fallback: ['zlib', 'zlib_dep'])
 
 wx_dep = dependency('wxWidgets', version: '>=3.0.0',

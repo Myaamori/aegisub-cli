@@ -1,4 +1,11 @@
+*.vcxproj.user
+*.idb
+*.pdb
+*.mo
+*.exe
+
 /output
+/include
 /tests/data
 
 git_version.h
@@ -9,6 +16,23 @@ tests/*.json
 tools/osx-bundle.sed
 
 .DS_Store
+tools/repack-thes-dict
+tools/repack-thes-dict.dSYM
+vendor/luajit/src/host/buildvm
+vendor/luajit/src/host/minilua
+vendor/luajit/src/host/buildvm_arch.h
+vendor/luajit/src/jit/vmdef.lua
+vendor/luajit/src/gen
+vendor/luajit/src/lj_vm.s
+vendor/luajit/src/lj_bcdef.h
+vendor/luajit/src/lj_ffdef.h
+vendor/luajit/src/lj_folddef.h
+vendor/luajit/src/lj_libdef.h
+vendor/luajit/src/lj_recdef.h
+vendor/luajit/src/luajit
+
+.nuget
+.vs
 
 # Meson
 subprojects/freetype*

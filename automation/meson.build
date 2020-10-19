@@ -1,4 +1,4 @@
-automation_dir = dataroot / 'automation'
+automation_dir = get_option('datadir') / 'aegisub' / 'automation'
 
 install_data(
     'autoload/cleantags-autoload.lua',
