@@ -82,7 +82,6 @@ decltype(LogSink::messages) LogSink::GetMessages() const {
 }
 
 Message::Message(const char *section, Severity severity, const char *file, const char *func, int line)
-: msg(buffer, sizeof buffer)
 {
 	using namespace std::chrono;
 	sm.section = section;
@@ -94,7 +93,7 @@ Message::Message(const char *section, Severity severity, const char *file, const
 }
 
 Message::~Message() {
-	sm.message = std::string(buffer, (std::string::size_type)msg.tellp());
+	sm.message = msg.str();
 	agi::log::log->Log(sm);
 }
 
