@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <sstream>
 
 // These macros below aren't a perm solution, it will depend on how annoying they are through
 // actual usage, and also depends on msvc support.

@@ -340,7 +340,6 @@ int main(int argc, char **argv) {
 		// Local config, make ?user mean ?data so all user settings are placed in install dir
 		config::path->SetToken("?user", config::path->Decode("?data"));
 		config::path->SetToken("?local", config::path->Decode("?data"));
-		crash_writer::Initialize(config::path->Decode("?user"));
 	} catch (agi::fs::FileSystemError const&) {
 		// File doesn't exist or we can't read it
 		// Might be worth displaying an error in the second case

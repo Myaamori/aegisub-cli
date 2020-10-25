@@ -215,12 +215,12 @@ namespace Automation4 {
 				lua_createtable(L, paths.size(), 0);
 				for (size_t i = 0; i < paths.size(); ++i) {
 					LOG_I("agi/auto4_lua_progresssink") << "Opening " << paths[i];
-					lua_pushstring(L, paths[i].c_str());
+					lua_pushstring(L, paths[i].string().c_str());
 					lua_rawseti(L, -2, i + 1);
 				}
 			} else {
 				LOG_I("agi/auto4_lua_progresssink") << "Opening " << paths[0];
-				lua_pushstring(L, paths[0].c_str());
+				lua_pushstring(L, paths[0].string().c_str());
 			}
 
 			config::file_responses->pop_front();
@@ -246,7 +246,7 @@ namespace Automation4 {
 		if (config::file_responses->size() > 0) {
 			auto& paths = config::file_responses->front();
 			LOG_I("agi/auto4_lua_progresssink") << "Saving to " << paths[0];
-			lua_pushstring(L, paths[0].c_str());
+			lua_pushstring(L, paths[0].string().c_str());
 			config::file_responses->pop_front();
 			return 1;
 		} else {
