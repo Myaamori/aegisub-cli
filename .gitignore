@@ -42,6 +42,11 @@ subprojects/libass
 subprojects/libpng*
 subprojects/packagecache
 subprojects/zlib*
+subprojects/boost_1_74_0/
+subprojects/ffmpeg/
+subprojects/ffms2-2.40/
+subprojects/icu/
+
 
 *.ass
 *.kdev4

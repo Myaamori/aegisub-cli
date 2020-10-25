@@ -42,18 +42,9 @@ aegisub_src = files(
     'video_provider_dummy.cpp',
     'video_provider_manager.cpp',
     'video_provider_yuv4mpeg.cpp',
+    'video_provider_ffmpegsource.cpp',
+    'ffmpegsource_common.cpp'
 )
-
-opt_src = [
-    ['FFMS2', ['video_provider_ffmpegsource.cpp',
-               'ffmpegsource_common.cpp']],
-]
-
-foreach opt: opt_src
-    if dep_avail.contains(opt[0])
-        aegisub_src += opt[1]
-    endif
-endforeach
 
 aegisub_cpp_pch = ['include/agi_pre.h']
 aegisub_c_pch = ['include/agi_pre_c.h']

@@ -3,7 +3,8 @@ option('uchardet', type: 'feature', description: 'uchardet character encoding de
 
 option('system_luajit', type: 'boolean', value: false, description: 'Force using system luajit')
 
-option('icu_path', type: 'string', value: '', description: 'Path to ICU libraries on Windows')
+option('local_boost', type: 'boolean', value: false, description: 'Force using locally compiled Boost')
+
 option('wx_path', type: 'string', value: '', description: 'Path to wxWidgets libraries on Windows')
 
 option('credit', type: 'string', value: '', description: 'Build credit shown in program title')

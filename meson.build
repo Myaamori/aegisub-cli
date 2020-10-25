@@ -1,6 +1,6 @@
 project('Aegisub-CLI', ['c', 'cpp'],
         license: 'BSD-3-Clause',
-        meson_version: '>=0.50.0',
+        meson_version: '>=0.55.0',
         # c_std=c11 should be here but it breaks Linux builds for some reason, needs investigation
         default_options: ['cpp_std=c++11', 'b_lto=true'],
         version: '3.2.2')
@@ -21,7 +21,8 @@ dataroot = get_option('prefix') / get_option('datadir') / 'aegisub'
 add_project_arguments('-DP_DATA="@0@"'.format(dataroot), language: 'cpp')
 
 if host_machine.system() == 'windows'
-    add_project_arguments('-DNOMINMAX', '-D_WIN32_WINNT=0x0602', language: 'cpp')
+    add_project_arguments('-DWIN32', '-DNOMINMAX', '-D_WIN32_WINNT=0x0602', language: 'cpp')
+    add_project_arguments('-DWIN32', '-DNOMINMAX', '-D_WIN32_WINNT=0x0602', language: 'c')
 endif
 
 conf = configuration_data()
@@ -48,75 +49,55 @@ cxx = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 deps += cc.find_library('m', required: false)
 deps += cc.find_library('dl', required: false)
-iconv_dep = cc.find_library('iconv', required: false)
-if not iconv_dep.found() and host_machine.system() == 'windows'
+if not cxx.check_header('iconv.h')
     iconv_sp = subproject('iconv') # this really needs to be replaced with a proper port
-    deps_inc += iconv_sp.get_variable('iconv_incs')
-    iconv_dep = iconv_sp.get_variable('libiconv_dep')
+    deps += iconv_sp.get_variable('libiconv_dep')
 endif
-deps += iconv_dep
 
-deps += dependency('boost', version: '>=1.50.0',
-                   modules: ['chrono', 'filesystem', 'locale', 'regex',
-                             'system', 'thread', 'program_options'],
-                   static: get_option('default_library') == 'static')
+boost_modules = ['chrono', 'filesystem', 'thread', 'locale', 'regex', 'program_options']
+if not get_option('local_boost')
+    boost_dep = dependency('boost', version: '>=1.50.0',
+                            modules: boost_modules,
+                            required: cxx.get_id() != 'msvc',
+                            static: get_option('default_library') == 'static')
+endif
+
+if get_option('local_boost') or not boost_dep.found()
+    boost_dep = []
+    boost = subproject('boost')
+    foreach module: boost_modules
+        boost_dep += boost.get_variable('boost_' + module + '_dep')
+    endforeach
+endif
+
+deps += boost_dep
 if host_machine.system() == 'windows'
     conf.set('BOOST_USE_WINDOWS_H', '1')
 endif
 
-deps += dependency('zlib', fallback: ['zlib', 'zlib_dep'])
+deps += dependency('zlib')
 
-wx_dep = dependency('wxWidgets', version: '>=3.0.0',
-                    required: cxx.get_id() != 'msvc',
-                    modules: ['std'])
-if not wx_dep.found() # this will only be hit with msvc
-    if get_option('wx_path') != ''
-        deps_inc += include_directories(get_option('wx_path') / 'include' / 'msvc', get_option('wx_path') / 'include')
-        add_project_arguments('-DUNICODE', '-D_UNICODE', language: 'cpp')
-        add_project_arguments('-DwxMSVC_VERSION_AUTO', '-DWXUSINGDLL', language: 'cpp')
-    else
-        error('wxWidgets not found and no wx_path defined.')
+add_project_arguments('-DUNICODE', '-D_UNICODE', language: 'cpp')
+
+if host_machine.system() != 'windows'
+    wx_dep = dependency('wxWidgets', version: '>=3.0.0',
+                        required: cxx.get_id() != 'msvc',
+                        modules: ['std'])
+    if not wx_dep.found() # this will only be hit with msvc
+        if get_option('wx_path') != ''
+            deps_inc += include_directories(get_option('wx_path') / 'include' / 'msvc', get_option('wx_path') / 'include')
+            add_project_arguments('-DwxMSVC_VERSION_AUTO', '-DWXUSINGDLL', language: 'cpp')
+        else
+            error('wxWidgets not found and no wx_path defined.')
+        endif
     endif
-endif
 deps += wx_dep
-
-icu_uc_dep = dependency('icu-uc', version: '>=4.8.1.1', required: cxx.get_id() != 'msvc')
-icu_i18n_dep = dependency('icu-i18n', version: '>=4.8.1.1', required: cxx.get_id() != 'msvc')
-if not (icu_uc_dep.found() and icu_i18n_dep.found())
-    if get_option('icu_path') != ''
-        deps_inc += include_directories(get_option('icu_path') / 'include')
-    else
-        error('ICU not found and no icu_path defined.')
-    endif
 endif
-if not icu_uc_dep.found()
-    icu_uc_dep = cxx.find_library('icuuc', dirs: get_option('icu_path') / 'lib64')
-endif
-deps += icu_uc_dep
-if not icu_i18n_dep.found()
-    icu_i18n_dep = cxx.find_library('icuin', dirs: get_option('icu_path') / 'lib64')
-endif
-deps += icu_i18n_dep
 
-dep_avail = []
-foreach dep: [
-    # video
-    ['ffms2', '', 'FFMS2'], # needs a proper port
-    # other
-    ['uchardet', '', 'uchardet'], # needs a proper port
-]
-    d = dependency(dep[0], version: dep[1] != '' ? dep[1]: '>=0',
-                   required: false)
-
-    optname = dep[0].split('-')[0]
-    if d.found() and not get_option(optname).disabled()
-        deps += d
-        conf.set('WITH_@0@'.format(dep[0].split('-')[0].to_upper()), '1')
-        dep_avail += dep[2]
-    elif get_option(optname).enabled()
-        error('@0@ enabled but not found'.format(dep[2]))
-    endif
-endforeach
+deps += dependency('icu-uc', version: '>=4.8.1.1')
+deps += dependency('icu-i18n', version: '>=4.8.1.1')
+deps += dependency('ffms2')
+conf.set('WITH_FFMS2', '1')
 
 if host_machine.system() == 'darwin'
     frameworks_dep = dependency('appleframeworks', modules : ['CoreText', 'CoreFoundation'])

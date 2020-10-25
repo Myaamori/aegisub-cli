@@ -21,12 +21,8 @@ if ($BuildRoot -eq $null -or $BuildRoot.Trim() -eq "")  {
 }
 
 # support legacy in-tree builds
-if ([System.IO.Path]::GetFullPath([System.IO.Path]::Combine((pwd).Path, $BuildRoot)) -eq
-  [System.IO.Path]::GetFullPath([System.IO.Path]::Combine((pwd).Path, $repositoryRootPath))) {
-    $BuildRoot = Join-Path $repositoryRootPath 'build'
-  }
 $gitVersionHeaderPath = Join-Path $BuildRoot 'git_version.h'
-$gitVersionXmlPath = Join-Path $repositoryRootPath 'build' | Join-Path -ChildPath 'git_version.xml'
+$gitVersionXmlPath = Join-Path $BuildRoot 'git_version.xml'
 
 $version = @{}
 if (Test-Path $gitVersionHeaderPath) {
