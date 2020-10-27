@@ -20,6 +20,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <iostream>
+
 namespace agi { namespace log {
 void EmitSTDOUT::log(SinkMessage const& sm) {
 	tm tmtime;
@@ -27,7 +29,7 @@ void EmitSTDOUT::log(SinkMessage const& sm) {
 	localtime_s(&tmtime, &time);
 
 	char buff[65536];
-	_snprintf_s(buff, _TRUNCATE, "%s (%d): %c %02d:%02d:%02d.%-3ld <%-25s> [%s]  %.*s\n",
+	_snprintf_s(buff, _TRUNCATE, "%s (%d): %c %02d:%02d:%02d.%-3ld <%-25s> [%s]  %.*s",
 		sm.file,
 		sm.line,
 		Severity_ID[sm.severity],
@@ -40,5 +42,7 @@ void EmitSTDOUT::log(SinkMessage const& sm) {
 		(int)sm.message.size(),
 		sm.message.c_str());
 	OutputDebugStringW(charset::ConvertW(buff).c_str());
+	OutputDebugStringW(L"\n");
+	std::cout << buff << std::endl;
 }
 } }
