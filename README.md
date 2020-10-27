@@ -1,98 +1,84 @@
-# Aegisub
+# Aegisub CLI
 
-For binaries and general information [see the homepage](http://www.aegisub.org).
+Standalone binary for running Aegisub automations from the command line.
 
-The bug tracker can be found at http://devel.aegisub.org.
+## Usage
 
-Support is available on [the forums](http://forum.aegisub.org) or [on IRC](irc://irc.rizon.net/aegisub).
+```
+aegisub-cli [options] <input file> <output file> <script file> <macro>
+Options:
+  --help                  produce help message
+  --video arg             video to load
+  --timecodes arg         timecodes to load
+  --keyframes arg         keyframes to load
+  --active-line arg (=-1) the active line
+  --selected-lines arg    the selected lines
+  --dialog arg            response to a dialog, in JSON
+  --file arg              filename to supply to an open/save call
+```
 
-## Building Aegisub
+Examples:
+```
+aegisub-cli --dialog '{"button": 0, "values": {"stripComments": true}}' --video premux.mkv script.ass script_out.ass l0.ASSWipe.moon ASSWipe
+
+aegisub-cli --selected-lines 0-5,10,15-20 script.ass script_out.ass lyger.GradientByChar.lua "Gradient by characte/Apply Gradient"
+```
+
+### Dialogs
+
+You can navigate automations that show dialogs using the `--dialog` option.
+`--dialog` takes a JSON object with two keys: `button` and `values`.
+`button` is an integer specifying which button in the dialog to push, starting at 0.
+`values` is a JSON object consisting of control name/value pairs, for specifying values of text fields, checkboxes, and so on.
+
+Valid values include:
+
+* Float controls: A float such as `0.1`
+* Integer controls: An integer such as `42`
+* Color controls: An integer array of length 3 or 4, such as `[50, 100, 250, 20]`, in the order R, G, B, A
+* Checkbox controls: A boolean value, either `true` or `false`
+* Others: A string such as `"hello"`
+
+The control names are the names supplied to `aegisub.dialog`.
+Refer to the source code of the automation or the debug output printed by `aegisub-cli` to find the correct names.
+
+## Compiling
+
+### Linux
+
+Install Meson and Ninja (e.g. using pip for Python 3), as well as development libraries for ICU, Boost and FFMS2, and run
+
+```
+$ meson --prefix=/usr --buildtype=release builddir
+$ ninja -C builddir src/aegisub-cli
+```
+
+The prefix should be set to the same prefix as your main Aegisub installation, as this is where Aegisub CLI will search for automation modules.
+Note however that you do not need to install the actual binary itself to the same directory.
 
 ### Windows
 
-Prerequisites:
+Install Visual Studio 2019, Python 3, Meson and Ninja, open the `x64 Native Tools Command Prompt for VS 2019`, run
 
-1. Visual Studio 2015 (the free Community edition is good enough)
-2. The June 2010 DirectX SDK (the final release before DirectSound was dropped)
-3. [Yasm](http://yasm.tortall.net/) installed to somewhere on your path.
+```
+$ meson -Ddefault_library=static -Dlocal_boost=true --buildtype=release builddir
+$ ninja -C builddir src/aegisub-cli.exe
+```
 
-There are a few optional dependencies:
+and sit tight.
+Meson will download and build the required dependencies, including ICU, Boost and FFmpeg, so compilation will take a while.
 
-1. msgfmt, to build the translations
-2. WinRAR, to build the portable installer
-3. InnoSetup, to build the regular installer
+### Development on Windows
 
-All other dependencies are either stored in the repository or are included as submodules.
+You can generate a Visual Studio 2019 project using
+```
+$ meson -Ddefault_library=static -Dlocal_boost=true --buildtype=debugoptimized --backend vs2019 builddir
+```
 
-Building:
+You can then import the solution generated in `builddir`.
+Note that you cannot use `--buildtype=debug` as FFmpeg will fail to compile without optimizations.
 
-1. Clone Aegisub's repository recursively to fetch it and all submodules: `git clone --recursive git@github.com:Aegisub/Aegisub.git` This will take quite a while and requires about 2.5 GB of disk space.
-2. Open Aegisub.sln
-3. Build the BuildTasks project.
-4. Build the entire solution.
+## Windows binaries
 
-You should now have a `bin` directory in your Aegisub directory which contains `aegisub32d.exe`, along with a pile of other files.
-
-The Aegisub installer includes some files not built as part of Aegisub (such as Avisynth and VSFilter), so for a fully functional copy of Aegisub you now need to copy all of the files from an installed copy of Aegisub into your `bin` directory (and don't overwrite any of the files already there).
-You'll also either need to copy the `automation` directory into the `bin` directory, or edit your automation search paths to include the `automation` directory in the source tree.
-
-After building the solution once, you'll want to switch to the Debug-MinDep configuration, which skips checking if the dependencies are out of date, as that takes a while.
-
-### OS X
-
-A vaguely recent version of Xcode and the corresponding command-line tools are required.
-Nothing older than Xcode 5 has been tested recently, but it is likely that some later versions of Xcode 4 are good enough.
-
-For personal usage, you can use homebrew to install almost all of Aegisub's dependencies:
-
-	brew install autoconf automake ffmpeg ffms2 fftw freetype fribidi gettext icu4c libass m4 pkg-config boost
-	brew install luajit --HEAD
-	brew link --force gettext
-	export LDFLAGS="-L/usr/local/opt/icu4c/lib"
-	export CPPFLAGS="-I/usr/local/opt/icu4c/include"
-	export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
-
-wxWidgets is located in vendor/wxWidgets, and can be built like so:
-
-	CPPFLAGS="$CPPFLAGS -D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES=1" \
-	./configure --disable-aboutdlg --disable-animatectrl --disable-aui --disable-any \
-	--disable-bannerwindow --disable-base64 --disable-calendar --disable-caret \
-	--disable-cmdline --disable-colourpicker --disable-compat28 --disable-config \
-	--disable-constraints --disable-datepick --disable-dctransform --disable-debugreport \
-	--disable-dialupman --disable-docview --disable-filehistory --disable-finddlg \
-	--disable-fs_archive --disable-fs_inet --disable-fs_zip --disable-fsvolume \
-	--disable-fswatcher --disable-gif --disable-help --disable-html --disable-ipc \
-	--disable-joystick --disable-jpeg --disable-largefile --disable-markup --disable-mdi \
-	--disable-mediactrl --disable-metafiles --disable-miniframe --disable-notifmsg \
-	--disable-numberdlg --disable-pcx --disable-pnm --disable-postscript \
-	--disable-prefseditor --disable-printarch --disable-progressdlg --disable-propgrid \
-	--disable-protocol --disable-protocols --disable-rearrangectrl --disable-ribbon \
-	--disable-richtext --disable-richtooltip --disable-snglinst --disable-sockets \
-	--disable-sockets --disable-sound --disable-splash --disable-splines \
-	--disable-std_iostreams --disable-svg --disable-tarstream --disable-tiff \
-	--disable-tipdlg --disable-tipwindow --disable-url --disable-webkit --disable-webview \
-	--disable-wizarddlg --disable-xrc \
-	--enable-geometry --enable-imaglist --enable-listctrl --enable-stc --with-cocoa \
-	--with-libpng=yes --with-macosx-version-min=10.9 \
-	--with-opengl \
-	--without-libjpeg --without-libtiff --without-regex \
-	&& make
-
-Once the dependencies are installed, build Aegisub with `autoreconf && ./configure --with-wxdir=/path/to/Aegisub/vendor/wxWidgets && make && make osx-bundle`.
-`autoreconf` should be skipped if you are building from a source tarball rather than `git`.
-
-## Updating Moonscript
-
-From within the Moonscript repository, run `bin/moon bin/splat.moon -l moonscript moonscript/ > bin/moonscript.lua`.
-Open the newly created `bin/moonscript.lua`, and within it make the following changes:
-
-1. Prepend the final line of the file, `package.preload["moonscript"]()`, with a `return`, producing `return package.preload["moonscript"]()`.
-2. Within the function at `package.preload['moonscript.base']`, remove references to `moon_loader`, `insert_loader`, and `remove_loader`. This means removing their declarations, definitions, and entries in the returned table.
-3. Within the function at `package.preload['moonscript']`, remove the line `_with_0.insert_loader()`.
-
-The file is now ready for use, to be placed in `automation/include` within the Aegisub repo.
-
-## License
-
-All files in this repository are licensed under various GPL-compatible BSD-style licenses; see LICENCE and the individual source files for more information.
-The official Windows and OS X builds are GPLv2 due to including fftw3.
+There are pre-built binaries for Windows available from the releases section.
+Simply place aegisub-cli.exe in the same directory as your main Aegisub executable and add the directory to your PATH.
