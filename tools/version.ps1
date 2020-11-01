@@ -2,7 +2,9 @@
 
 param (
   [Parameter(Position = 0, Mandatory = $false)]
-  [string]$BuildRoot = $null
+  [string]$BuildRoot = $null,
+  [Parameter(Position = 1, Mandatory = $false)]
+  [string]$SourceRoot = $null
 )
 
 $lastSvnRevision = 6962
@@ -21,6 +23,10 @@ if ($BuildRoot -eq $null -or $BuildRoot.Trim() -eq "")  {
 }
 
 # support legacy in-tree builds
+if ([System.IO.Path]::GetFullPath([System.IO.Path]::Combine((pwd).Path, $BuildRoot)) -eq
+  [System.IO.Path]::GetFullPath([System.IO.Path]::Combine((pwd).Path, $repositoryRootPath))) {
+    $BuildRoot = Join-Path $repositoryRootPath 'build'
+  }
 $gitVersionHeaderPath = Join-Path $BuildRoot 'git_version.h'
 $gitVersionXmlPath = Join-Path $BuildRoot 'git_version.xml'
 
