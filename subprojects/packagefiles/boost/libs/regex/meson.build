@@ -25,9 +25,9 @@ if not is_static
 endif
 
 boost_regex = library('boost_regex', regex_sources,
-                 include_directories: inc,
-                 cpp_args: regex_args,
-                 dependencies: [thread_dep, icu_deps])
+                      include_directories: inc,
+                      cpp_args: regex_args,
+                      dependencies: [thread_dep, icu_deps])
 
 boost_regex_dep = declare_dependency(link_with: boost_regex, include_directories: inc,
                                      compile_args: '-DBOOST_ALL_NO_LIB=1')

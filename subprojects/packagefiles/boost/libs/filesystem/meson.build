@@ -27,9 +27,9 @@ if host_machine.system() == 'windows'
 endif
 
 boost_filesystem = library('boost_filesystem', filesystem_sources,
-                     include_directories: inc,
-                     cpp_args: filesystem_args,
-                     dependencies: [thread_dep, filesystem_deps])
+                           include_directories: inc,
+                           cpp_args: filesystem_args,
+                           dependencies: [thread_dep, filesystem_deps])
 
 boost_filesystem_dep = declare_dependency(link_with: boost_filesystem, include_directories: inc,
                                           compile_args: [is_static ? '-DBOOST_FILESYSTEM_STATIC_LINK=1'

@@ -5,9 +5,9 @@ chrono_sources = files([
 ])
 
 boost_chrono = library('boost_chrono', chrono_sources,
-                 include_directories: inc,
-                 cpp_args: is_static ? '-DBOOST_All_STATIC_LINK=1' : '-DBOOST_All_DYN_LINK=1',
-                 dependencies: thread_dep)
+                       include_directories: inc,
+                       cpp_args: is_static ? '-DBOOST_All_STATIC_LINK=1' : '-DBOOST_All_DYN_LINK=1',
+                       dependencies: thread_dep)
 
 boost_chrono_dep = declare_dependency(link_with: boost_chrono, include_directories: inc,
                                       compile_args: [is_static ? '-DBOOST_CHRONO_STATIC_LINK=1'

@@ -235,5 +235,5 @@ i18n_sources = files(
 )
 
 i18n_args = '-DU_I18N_IMPLEMENTATION'
-i18n_link = ['uc', 'data']
+i18n_link = ['uc']
 i18n_deps = []

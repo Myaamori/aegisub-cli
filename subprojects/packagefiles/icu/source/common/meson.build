@@ -198,5 +198,5 @@ uc_sources = files(
 )
 
 uc_args = ['-DU_COMMON_IMPLEMENTATION']
-uc_link = ['data']
+uc_link = []
 uc_deps = dl_dep

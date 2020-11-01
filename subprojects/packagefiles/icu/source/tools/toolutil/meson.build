@@ -26,5 +26,5 @@ tu_sources = files(
 )
 
 tu_args = ['-DU_TOOLUTIL_IMPLEMENTATION']
-tu_link = ['uc', 'i18n', 'data']
+tu_link = ['uc', 'i18n']
 tu_deps = []

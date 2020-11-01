@@ -14,5 +14,5 @@ io_sources = files(
 )
 
 io_args = '-DU_IO_IMPLEMENTATION'
-io_link = ['i18n', 'uc', 'data']
+io_link = ['i18n', 'uc']
 io_deps = []

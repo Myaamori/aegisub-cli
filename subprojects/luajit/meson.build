@@ -16,7 +16,7 @@ if host_machine.system() == 'linux'
     ljvm_mode = 'elfasm'
     ljvm_bout = 'lj_vm.s'
 elif host_machine.system() == 'darwin'
-    add_project_arguments(['-DLUAJIT_OS=LUAJIT_OS_OSX'], language: 'c', native: true)
+    add_project_arguments('-DLUAJIT_OS=LUAJIT_OS_OSX', language: 'c', native: true)
     readline_dep = cc.find_library('readline')
     ljvm_mode = 'machasm'
     ljvm_bout = 'lj_vm.s'

@@ -1,4 +1,3 @@
-
 python3 = import('python').find_installation('python3')
 
 incdir = include_directories('common', 'i18n')
@@ -18,11 +17,7 @@ icu_libs = ['uc', 'i18n', 'io', 'tu']
 foreach lib: icu_libs
     liblinks = []
     foreach link: get_variable(lib + '_link')
-        if link == 'data'
-            liblinks += stubdata_lib
-        else
-            liblinks += get_variable(link + '_lib_stub')
-        endif
+        liblinks += get_variable(link + '_lib_stub')
     endforeach
     set_variable(lib + '_lib_stub', library(
         'icu' + lib + '_stub',
@@ -30,7 +25,7 @@ foreach lib: icu_libs
         include_directories: incdir,
         c_args: get_variable(lib + '_args'),
         cpp_args: get_variable(lib + '_args'),
-        link_with: liblinks,
+        link_with: liblinks + [stubdata_lib],
         dependencies: get_variable(lib + '_deps')
     ))
 endforeach
@@ -52,7 +47,7 @@ foreach lib: icu_libs
         include_directories: incdir,
         c_args: get_variable(lib + '_args'),
         cpp_args: get_variable(lib + '_args'),
-        link_with: liblinks,
+        link_with: liblinks + [data_lib],
         dependencies: get_variable(lib + '_deps')
     ))
 endforeach
