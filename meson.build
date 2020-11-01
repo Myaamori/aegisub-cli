@@ -49,7 +49,12 @@ cxx = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 deps += cc.find_library('m', required: false)
 deps += cc.find_library('dl', required: false)
-if not cxx.check_header('iconv.h')
+if cc.check_header('iconv.h')
+    iconv_dep = cc.find_library('iconv', required: false)
+    if iconv_dep.found()
+        deps += iconv_dep
+    endif
+else
     iconv_sp = subproject('iconv') # this really needs to be replaced with a proper port
     deps += iconv_sp.get_variable('libiconv_dep')
 endif
