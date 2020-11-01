@@ -33,8 +33,11 @@ vendor/luajit/src/luajit
 
 .nuget
 .vs
+*.ass
+*.kdev4
 
 # Meson
+build*/
 subprojects/freetype*
 subprojects/fribidi
 subprojects/harfbuzz
@@ -48,6 +51,3 @@ subprojects/ffms2-2.40/
 subprojects/icu/
 
 
-*.ass
-*.kdev4
-builddir/
