@@ -20,6 +20,10 @@
 
 namespace agi { namespace log {
 void EmitSTDOUT::log(SinkMessage const& sm) {
+	if (sm.severity > loglevel) {
+		return;
+	}
+
 	time_t time = sm.time / 1000000000;
 	tm tmtime;
 	localtime_r(&time, &tmtime);

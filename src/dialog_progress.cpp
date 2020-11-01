@@ -38,18 +38,18 @@ public:
 	DialogProgressSink(DialogProgress *dialog) : dialog(dialog) { }
 
 	void SetTitle(std::string const& title) override {
-		LOG_I("agi/dialog_progress") << title;
+		LOG_D("agi/dialog_progress") << title;
 	}
 
 	void SetMessage(std::string const& msg) override {
-		LOG_I("agi/dialog_progress") << msg;
+		LOG_D("agi/dialog_progress") << msg;
 	}
 
 	void SetProgress(int64_t cur, int64_t max) override {
-		int new_progress = mid<int>(0, double(cur) / max * 20, 20);
+		int new_progress = mid<int>(0, double(cur) / max * 10, 10);
 		if (new_progress != progress) {
 			progress = new_progress;
-			LOG_I("agi/dialog_progress") << "Progress: " << new_progress * 5 << "%";
+			LOG_I("agi/dialog_progress") << "Progress: " << new_progress * 10 << "%";
 		}
 	}
 
@@ -67,8 +67,8 @@ public:
 
 DialogProgress::DialogProgress(const std::string& title, const std::string& message)
 {
-	LOG_I("agi/dialog_progress") << title;
-	LOG_I("agi/dialog_progress") << message;
+	LOG_D("agi/dialog_progress") << title;
+	LOG_D("agi/dialog_progress") << message;
 }
 
 void DialogProgress::Run(std::function<void(agi::ProgressSink*)> task) {

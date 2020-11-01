@@ -206,7 +206,7 @@ namespace Automation4 {
 		bool multiple = !!lua_toboolean(L, 5);
 		bool must_exist = lua_toboolean(L, 6) || lua_isnil(L, 6);
 
-		LOG_I("agi/auto4_lua_progresssink") << "Open file: " << message << "|" << dir << "|" << file << "|" << wildcard;
+		LOG_D("agi/auto4_lua_progresssink") << "Open file: " << message << "|" << dir << "|" << file << "|" << wildcard;
 
 		if (config::file_responses->size() > 0) {
 			auto& paths = config::file_responses->front();
@@ -241,7 +241,7 @@ namespace Automation4 {
 		std::string wildcard(check_string(L, 4));
 		bool prompt_overwrite = !lua_toboolean(L, 5);
 		
-		LOG_I("agi/auto4_lua_progresssink") << "Save file: " << message << "|" << dir << "|" << file << "|" << wildcard;
+		LOG_D("agi/auto4_lua_progresssink") << "Save file: " << message << "|" << dir << "|" << file << "|" << wildcard;
 
 		if (config::file_responses->size() > 0) {
 			auto& paths = config::file_responses->front();

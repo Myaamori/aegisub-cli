@@ -73,7 +73,7 @@
 #include <locale>
 #include "string_codec.h"
 
-#define StartupLog(a) LOG_I("main") << a
+#define StartupLog(a) LOG_D("main") << a
 #define StartupError(a) LOG_E("main") << a
 
 namespace config {
@@ -264,6 +264,7 @@ int main(int argc, char **argv) {
 		("selected-lines", boost::program_options::value<std::string>()->default_value(""), "the selected lines")
 		("dialog", boost::program_options::value<std::vector<std::string>>(), "response to a dialog, in JSON")
 		("file", boost::program_options::value<std::vector<std::string>>(), "filename to supply to an open/save call")
+		("loglevel", boost::program_options::value<int>()->default_value(4), "0 = exception; 1 = assert; 2 = warning; 3 = info; 4 = debug")
 	;
 
 	cmdline.add(flags);
@@ -326,7 +327,7 @@ int main(int argc, char **argv) {
 	config::file_responses = new std::list<std::vector<agi::fs::path>>;
 
 	agi::log::log = new agi::log::LogSink;
-	agi::log::log->Subscribe(agi::make_unique<agi::log::EmitSTDOUT>());
+	agi::log::log->Subscribe(agi::make_unique<agi::log::EmitSTDOUT>(vm["loglevel"].as<int>()));
 
 	// Set config file
 	StartupLog("Load local configuration");

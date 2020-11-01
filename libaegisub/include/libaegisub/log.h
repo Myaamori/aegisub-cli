@@ -132,7 +132,9 @@ public:
 
 /// Emit log entries to stdout.
 class EmitSTDOUT: public Emitter {
+	int loglevel;
 public:
+	EmitSTDOUT(int loglevel) : loglevel(loglevel) {}
 	void log(SinkMessage const& sm) override;
 };
 
