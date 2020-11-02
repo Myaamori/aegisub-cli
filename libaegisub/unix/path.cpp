@@ -24,19 +24,19 @@
 #include <pwd.h>
 
 namespace {
-#ifndef __APPLE__
 std::string home_dir() {
 	const char *env = getenv("HOME");
 	if (env) return env;
 
+#ifndef __APPLE__
 	if ((env = getenv("USER")) || (env = getenv("LOGNAME"))) {
 		if (passwd *user_info = getpwnam(env))
 			return user_info->pw_dir;
 	}
+#endif
 
 	throw agi::EnvironmentError("Could not get home directory. Make sure HOME is set.");
 }
-#endif
 }
 
 namespace agi {
