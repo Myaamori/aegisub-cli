@@ -19,6 +19,7 @@
 #include <libaegisub/exception.h>
 #include <libaegisub/util_osx.h>
 
+#include <boost/dll/runtime_symbol_info.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <pwd.h>
 
@@ -40,18 +41,20 @@ std::string home_dir() {
 
 namespace agi {
 void Path::FillPlatformSpecificPaths() {
-#ifndef __APPLE__
 	agi::fs::path home = home_dir();
+	agi::fs::path app_loc = boost::dll::program_location();
+#ifdef P_PORTABLE
+	SetToken("?data", app_loc.parent_path());
+#else
+	SetToken("?data", P_DATA);
+#endif
+
+#ifndef __APPLE__
 	SetToken("?user", home/".aegisub");
 	SetToken("?local", home/".aegisub");
-	SetToken("?data", P_DATA);
-	SetToken("?dictionary", "/usr/share/hunspell");
 #else
-	agi::fs::path app_support = agi::util::GetApplicationSupportDirectory();
-	SetToken("?user", app_support/"Aegisub");
-	SetToken("?local", app_support/"Aegisub");
-	SetToken("?data", agi::util::GetBundleSharedSupportDirectory());
-	SetToken("?dictionary", agi::util::GetBundleSharedSupportDirectory() + "/dictionaries");
+	SetToken("?user", home/"Library/Application Support/Aegisub");
+	SetToken("?local", home/"Library/Application Support/Aegisub");
 #endif
 	SetToken("?temp", boost::filesystem::temp_directory_path());
 }

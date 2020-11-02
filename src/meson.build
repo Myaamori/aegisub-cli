@@ -49,10 +49,13 @@ aegisub_src = files(
 aegisub_cpp_pch = ['include/agi_pre.h']
 aegisub_c_pch = ['include/agi_pre_c.h']
 
+aegisub_install_dir = get_option('portable_build') ? '/' : get_option('prefix') / get_option('bindir')
+
 aegisub = executable('aegisub-cli', aegisub_src, version_h, acconf,
                      link_with: [libresrc, libluabins, libaegisub],
                      include_directories: [libaegisub_inc, libresrc_inc, version_inc, deps_inc],
                      cpp_pch: aegisub_cpp_pch,
                      c_pch: aegisub_c_pch,
                      install: true,
+                     install_dir: aegisub_install_dir,
                      dependencies: deps)

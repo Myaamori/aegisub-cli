@@ -9,4 +9,4 @@ option('wx_path', type: 'string', value: '', description: 'Path to wxWidgets lib
 
 option('credit', type: 'string', value: '', description: 'Build credit shown in program title')
 
-option('include_automations', type: 'boolean', value: 'false', description: 'Include automation files in addition to the binary upon install')
+option('portable_build', type: 'boolean', value: false, description: 'Build and install a portable version of Aegisub CLI')

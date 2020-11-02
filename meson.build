@@ -18,7 +18,11 @@ version_h = custom_target('git_version.h',
                           output: ['git_version.h', 'git_version.xml'])
 
 dataroot = get_option('prefix') / get_option('datadir') / 'aegisub'
-add_project_arguments('-DP_DATA="@0@"'.format(dataroot), language: 'cpp')
+if get_option('portable_build')
+    add_project_arguments('-DP_PORTABLE', language: 'cpp')
+else
+    add_project_arguments('-DP_DATA="@0@"'.format(dataroot), language: 'cpp')
+endif
 
 if host_machine.system() == 'windows'
     add_project_arguments('-DWIN32', '-DNOMINMAX', '-D_WIN32_WINNT=0x0602', language: 'cpp')
@@ -124,8 +128,6 @@ subdir('subprojects/luabins/src')
 
 acconf = configure_file(output: 'acconf.h', configuration: conf)
 
-if get_option('include_automations')
-    subdir('automation')
-endif
+subdir('automation')
 subdir('libaegisub')
 subdir('src')

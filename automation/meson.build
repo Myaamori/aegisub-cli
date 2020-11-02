@@ -1,4 +1,9 @@
-automation_dir = get_option('datadir') / 'aegisub' / 'automation'
+
+if get_option('portable_build')
+    automation_dir = '/automation'
+else
+    automation_dir = get_option('prefix') / get_option('datadir') / 'aegisub' / 'automation'
+endif
 
 install_data(
     'autoload/cleantags-autoload.lua',
