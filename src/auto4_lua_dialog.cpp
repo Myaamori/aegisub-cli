@@ -269,6 +269,10 @@ namespace Automation4 {
 			{
 				lua_getfield(L, -1, "items");
 				read_string_array(L, items);
+
+				if (items.size() > 0 && std::find(items.begin(), items.end(), value) == items.end()) {
+					value = items[0];
+				}
 			}
 
 			bool CanSerialiseValue() const override { return true; }
