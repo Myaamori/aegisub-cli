@@ -580,7 +580,7 @@ namespace {
 			if (lua_pcall(L, nargs, nresults, -nargs - 2)) {
 				if (!lua_isnil(L, -1)) {
 					// if the call failed, log the error here
-					ps->Log("\n\nLua reported a runtime error:\n");
+					ps->Log("Lua reported a runtime error:");
 					ps->Log(get_string_or_default(L, -1));
 				}
 				lua_pop(L, 2);
@@ -754,7 +754,7 @@ namespace {
 		catch (agi::UserCancelException const&) {
 			subsobj->Cancel();
 			stackcheck.check_stack(0);
-			return;
+			throw;
 		}
 
 		auto lines = subsobj->ProcessingComplete(StrDisplay(c));
