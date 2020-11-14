@@ -251,7 +251,6 @@ int main(int argc, char **argv) {
 	cmdline.add_options()
 		("in-file", boost::program_options::value<std::string>(), "input file")
 		("out-file", boost::program_options::value<std::string>(), "output file")
-		("script", boost::program_options::value<std::string>(), "script file")
 		("macro", boost::program_options::value<std::string>(), "macro to run")
 	;
 
@@ -260,6 +259,7 @@ int main(int argc, char **argv) {
 		("video", boost::program_options::value<std::string>(), "video to load")
 		("timecodes", boost::program_options::value<std::string>(), "timecodes to load")
 		("keyframes", boost::program_options::value<std::string>(), "keyframes to load")
+		("automation", boost::program_options::value<std::vector<std::string>>(), "an automation script to run")
 		("active-line", boost::program_options::value<int>()->default_value(-1), "the active line")
 		("selected-lines", boost::program_options::value<std::string>()->default_value(""), "the selected lines")
 		("dialog", boost::program_options::value<std::vector<std::string>>(), "response to a dialog, in JSON")
@@ -270,7 +270,6 @@ int main(int argc, char **argv) {
 	cmdline.add(flags);
 	posdesc.add("in-file", 1);
 	posdesc.add("out-file", 1);
-	posdesc.add("script", 1);
 	posdesc.add("macro", 1);
 	boost::program_options::variables_map vm;
 	boost::program_options::store(
@@ -282,7 +281,7 @@ int main(int argc, char **argv) {
 		if (!vm.count("macro")) {
 			std::cout << "Too few arguments." << std::endl;
 		}
-		std::cout << argv[0] << " [options] <input file> <output file> <script file> <macro>" << std::endl;
+		std::cout << argv[0] << " [options] <input file> <output file> <macro>" << std::endl;
 		std::cout << flags << std::endl;
 		return 1;
 	}
@@ -508,9 +507,16 @@ int main(int argc, char **argv) {
 		// cache cwd in case automation changes it
 		auto cwd = boost::filesystem::current_path();
 
-		auto script = find_script(vm["script"].as<std::string>());
-		if (!script) {
-			return 1;
+		std::vector<std::unique_ptr<Automation4::Script>> scripts;
+		if (vm.count("automation")) {
+			for (auto& s : vm["automation"].as<std::vector<std::string>>()) {
+				StartupLog("Loading ") << s;
+				auto script = find_script(s);
+				if (!script) {
+					return 1;
+				}
+				scripts.emplace_back(std::move(script));
+			}
 		}
 
 		auto macro = vm["macro"].as<std::string>();
