@@ -24,6 +24,12 @@
 
 namespace agi { struct Context; }
 
+#define CMD_NAME(a) const char* name() const override { return a; }
+#define STR_MENU(a) std::string StrMenu(const agi::Context *) const override { return a; }
+#define STR_DISP(a) std::string StrDisplay(const agi::Context *) const override { return a; }
+#define STR_HELP(a) std::string StrHelp() const override { return a; }
+#define CMD_TYPE(a) int Type() const override { using namespace cmd; return a; }
+
 /// Commands
 namespace cmd {
 DEFINE_EXCEPTION(CommandError, agi::Exception);

@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+namespace agi { struct Context; }
+
 class AssFile;
 
 enum class ResampleARMode {
@@ -57,4 +59,4 @@ struct ResampleSettings {
 /// Resample the subtitles in the project
 /// @param file Subtitles to resample
 /// @param settings Resample configuration settings
-void ResampleResolution(AssFile *file, ResampleSettings settings);
+void ResampleResolution(agi::Context *file);

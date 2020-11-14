@@ -13,11 +13,26 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "command.h"
+#include "../resolution_resampler.h"
+#include "../include/aegisub/context.h"
 
 #include <libaegisub/format.h>
 #include <libaegisub/log.h>
+#include <libaegisub/make_unique.h>
+
 
 namespace cmd {
+struct tool_resampleres final : public Command {
+	CMD_NAME("tool/resampleres")
+	STR_MENU("&Resample Resolution...")
+	STR_DISP("Resample Resolution")
+	STR_HELP("Resample subtitles to maintain their current appearance at a different script resolution")
+
+	void operator()(agi::Context *c) override {
+		ResampleResolution(c);
+	}
+};
+
 	static std::map<std::string, std::unique_ptr<Command>> cmd_map;
 	typedef std::map<std::string, std::unique_ptr<Command>>::iterator iterator;
 
@@ -61,6 +76,7 @@ namespace cmd {
 
 	void init_builtin_commands() {
 		LOG_D("command/init") << "Populating command map";
+		reg(agi::make_unique<tool_resampleres>());
 	}
 
 	void clear() {

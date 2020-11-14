@@ -20,12 +20,16 @@
 #include "ass_file.h"
 #include "ass_style.h"
 #include "utils.h"
+#include "project.h"
+#include "async_video_provider.h"
+#include "include/aegisub/context.h"
 
 #include <libaegisub/exception.h>
 #include <libaegisub/of_type_adaptor.h>
 #include <libaegisub/split.h>
 #include <libaegisub/util.h>
 #include <libaegisub/ycbcr_conv.h>
+#include <libaegisub/log.h>
 
 #include <algorithm>
 #include <boost/algorithm/string/predicate.hpp>
@@ -221,7 +225,30 @@ namespace {
 	}
 }
 
-void ResampleResolution(AssFile *ass, ResampleSettings settings) {
+void ResampleResolution(agi::Context *c) {
+	ResampleSettings settings;
+	AssFile *ass = c->ass.get();
+
+	auto provider = c->project->VideoProvider();
+	if (!provider) {
+		throw agi::InvalidInputException("No video loaded");
+	}
+
+	ass->GetResolution(settings.source_x, settings.source_y);
+	settings.source_matrix = MatrixFromString(ass->GetScriptInfo("YCbCr Matrix"));
+
+	settings.dest_x = provider->GetWidth();
+	settings.dest_y = provider->GetHeight();
+	settings.dest_matrix = MatrixFromString(provider->GetRealColorSpace());
+
+	settings.ar_mode = ResampleARMode::Stretch;
+	settings.margin[LEFT] = 0;
+	settings.margin[RIGHT] = 0;
+	settings.margin[TOP] = 0;
+	settings.margin[BOTTOM] = 0;
+
+	LOG_I("resolution_resampler") << "Resampling from " << settings.source_x << "x" << settings.source_y << " (" << MatrixToString(settings.source_matrix) << ") to " << settings.dest_x << "x" << settings.dest_y << " (" << MatrixToString(settings.dest_matrix) << ")";
+
 	auto horizontal_stretch = 1.0;
 	auto old_ar = double(settings.source_x) / settings.source_y;
 	auto new_ar = double(settings.dest_x) / settings.dest_y;
