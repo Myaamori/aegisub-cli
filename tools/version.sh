@@ -45,6 +45,13 @@ else
   tagged_release=0
 fi
 
+if test -f "${version_h_path}"; then
+  old_version="$(sed -rn 's/^#define BUILD_GIT_VERSION_STRING "([^"]+)"$/\1/p' "${version_h_path}")"
+  if test "x$old_version" = "x$git_version_str"; then
+    echo "git revision unchanged; skip generating git_version.h"
+    exit 0
+  fi
+fi
 
 new_version_h="\
 #define BUILD_GIT_VERSION_NUMBER ${git_revision}
