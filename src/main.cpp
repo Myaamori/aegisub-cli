@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
 		("selected-lines", boost::program_options::value<std::string>()->default_value(""), "the selected lines")
 		("dialog", boost::program_options::value<std::vector<std::string>>(), "response to a dialog, in JSON")
 		("file", boost::program_options::value<std::vector<std::string>>(), "filename to supply to an open/save call")
-		("loglevel", boost::program_options::value<int>()->default_value(4), "0 = exception; 1 = assert; 2 = warning; 3 = info; 4 = debug")
+		("loglevel", boost::program_options::value<int>()->default_value(3), "0 = exception; 1 = assert; 2 = warning; 3 = info; 4 = debug")
 	;
 
 	cmdline.add(flags);

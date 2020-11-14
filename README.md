@@ -5,23 +5,26 @@ Standalone binary for running Aegisub automations from the command line.
 ## Usage
 
 ```
-aegisub-cli [options] <input file> <output file> <script file> <macro>
+aegisub-cli [options] <input file> <output file> <macro>
 Options:
   --help                  produce help message
   --video arg             video to load
   --timecodes arg         timecodes to load
   --keyframes arg         keyframes to load
+  --automation arg        an automation script to run
   --active-line arg (=-1) the active line
   --selected-lines arg    the selected lines
   --dialog arg            response to a dialog, in JSON
   --file arg              filename to supply to an open/save call
+  --loglevel arg (=3)     0 = exception; 1 = assert; 2 = warning; 3 = info; 4 =
+                          debug
 ```
 
 Examples:
 ```
-aegisub-cli --dialog '{"button": 0, "values": {"stripComments": true}}' --video premux.mkv script.ass script_out.ass l0.ASSWipe.moon ASSWipe
+aegisub-cli --dialog '{"button": 0, "values": {"stripComments": true}}' --video premux.mkv --automation l0.ASSWipe.moon script_in.ass script_out.ass ASSWipe
 
-aegisub-cli --selected-lines 0-5,10,15-20 script.ass script_out.ass lyger.GradientByChar.lua "Gradient by characte/Apply Gradient"
+aegisub-cli --selected-lines 0-5,10,15-20 --automation lyger.GradientByChar.lua script_in.ass script_out.ass "Gradient by characte/Apply Gradient"
 ```
 
 ### Dialogs
@@ -40,7 +43,7 @@ Valid values include:
 * Others: A string such as `"hello"`
 
 The control names are the names supplied to `aegisub.dialog`.
-Refer to the source code of the automation or the debug output printed by `aegisub-cli` to find the correct names.
+Refer to the source code of the automation or the debug output printed by `aegisub-cli` when run with `--loglevel 4` to find the correct names.
 
 ## Compiling
 
